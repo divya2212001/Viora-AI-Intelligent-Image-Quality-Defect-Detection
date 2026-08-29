@@ -8,9 +8,7 @@ from ml.predict import QualityPredictor
 
 from app.config import settings
 
-from app.database import (
-    predictions_collection,
-)
+from app.database import predictions_collection
 
 from app.models.prediction import (
     create_prediction_document,
@@ -20,7 +18,9 @@ from app.services.explainability_service import (
     generate_gradcam,
 )
 
+
 predictor = QualityPredictor()
+
 
 def get_quality_label(
     qmos: float,
@@ -40,6 +40,8 @@ def get_quality_label(
 
     return "Very Poor"
 
+
+
 def get_recommendation(
     qmos: float,
     defects: dict,
@@ -53,17 +55,12 @@ def get_recommendation(
         )
 
         highest_score = float(
-            defects[
-                highest_defect
-            ]
+            defects[highest_defect]
         )
 
     else:
 
-        highest_defect = (
-            "quality issue"
-        )
-
+        highest_defect = "quality issue"
         highest_score = 0.0
 
 
@@ -86,14 +83,14 @@ def get_recommendation(
     if qmos >= 2.5:
 
         return (
-            f"Image quality is moderate. "
+            "Image quality is moderate. "
             f"The main detected issue is "
             f"{highest_defect}."
         )
 
 
     return (
-        f"Image quality is low. "
+        "Image quality is low. "
         f"The most prominent detected issue "
         f"is {highest_defect} "
         f"({highest_score:.2f})."
@@ -111,13 +108,14 @@ def predict_image(
         image_bytes
     )
 
-    qmos = prediction[
-        "qmos"
-    ]
+    qmos = float(
+        prediction["qmos"]
+    )
 
     defects = prediction[
         "defects"
     ]
+
     quality_label = (
         get_quality_label(
             qmos
@@ -134,7 +132,6 @@ def predict_image(
     prediction_id = str(
         uuid4()
     )
-
     array = np.frombuffer(
         image_bytes,
         dtype=np.uint8,
@@ -160,23 +157,19 @@ def predict_image(
         exist_ok=True,
     )
 
-
     safe_filename = (
         f"{prediction_id}.jpg"
     )
-
 
     image_path = (
         upload_dir
         / safe_filename
     )
 
-
     success = cv2.imwrite(
         str(image_path),
         image,
     )
-
 
     if not success:
 
@@ -189,11 +182,12 @@ def predict_image(
         f"/uploads/{safe_filename}"
     )
 
-
     gradcam_url = None
 
-
     try:
+
+        # Prepare the same tensors used by
+        # the prediction model.
 
         (
             image_tensor,
@@ -202,11 +196,20 @@ def predict_image(
             image_bytes
         )
 
+
         gradcam_dir = (
             upload_dir
             / "gradcam"
         )
 
+        gradcam_dir.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+
+        # Generate Grad-CAM using the same
+        # trained model.
 
         gradcam_filename = (
             generate_gradcam(
@@ -220,7 +223,9 @@ def predict_image(
 
                 output_dir=gradcam_dir,
 
-                output_filename=f"{prediction_id}.jpg",
+                output_filename=(
+                    f"{prediction_id}.jpg"
+                ),
             )
         )
 
@@ -228,12 +233,15 @@ def predict_image(
         if gradcam_filename:
 
             gradcam_url = (
-                f"/uploads/gradcam/"
+                "/uploads/gradcam/"
                 f"{gradcam_filename}"
             )
 
 
     except Exception as error:
+
+        # Grad-CAM should never prevent
+        # the actual prediction from being returned.
 
         print(
             "WARNING: Grad-CAM generation failed:"
@@ -247,6 +255,9 @@ def predict_image(
 
         "prediction_id":
             prediction_id,
+
+        "session_id":
+            session_id,
 
         "filename":
             filename,
@@ -280,30 +291,48 @@ def predict_image(
             gradcam_url,
     }
 
+    document = create_prediction_document(
 
-    document = (
-        create_prediction_document(
+        prediction_id=
+            prediction_id,
+
+        filename=
             filename,
-            result,
+
+        session_id=
             session_id,
-        )
+
+        prediction=
+            result,
     )
 
 
-    # Use prediction ID as MongoDB _id
-    document["_id"] = (
-        prediction_id
-    )
+    document["_id"] = prediction_id
 
 
     try:
-        predictions_collection.insert_one(document)
-        result["persistence_status"] = "stored"
+
+        predictions_collection.insert_one(
+            document
+        )
+
+        result[
+            "persistence_status"
+        ] = "stored"
+
+
     except Exception as exc:
-        # An unavailable database must not discard an otherwise valid model
-        # result or make Grad-CAM unusable. History becomes available again
-        # once MongoDB is restored and future results are stored.
-        print(f"WARNING: prediction was not persisted: {exc}")
-        result["persistence_status"] = "unavailable"
+
+        print(
+            "WARNING: prediction was not persisted:"
+        )
+
+        print(
+            repr(exc)
+        )
+
+        result[
+            "persistence_status"
+        ] = "unavailable"
 
     return result

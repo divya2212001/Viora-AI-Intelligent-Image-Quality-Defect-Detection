@@ -2,21 +2,26 @@ from datetime import datetime, timezone
 
 
 def create_prediction_document(
+    prediction_id: str,
     filename: str,
-    prediction: dict,
     session_id: str,
+    prediction: dict,
 ):
+    """
+    Create the MongoDB document for an image analysis.
+    """
 
     return {
-        "prediction_id":
-            prediction[
-                "prediction_id"
-            ],
 
-        "session_id": session_id,
+        "prediction_id":
+            prediction_id,
+
+        "session_id":
+            session_id,
 
         "filename":
             filename,
+
         "image_url":
             prediction.get(
                 "image_url"
@@ -41,18 +46,22 @@ def create_prediction_document(
             prediction[
                 "quality_label"
             ],
+
         "defects":
             prediction[
                 "defects"
             ],
+
         "statistics":
             prediction[
                 "statistics"
             ],
+
         "recommendation":
             prediction[
                 "recommendation"
             ],
+
         "created_at":
             datetime.now(
                 timezone.utc
