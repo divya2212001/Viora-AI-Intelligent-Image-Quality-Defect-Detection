@@ -1,0 +1,40 @@
+{
+  "train_samples": 7051,
+  "validation_samples": 1511,
+  "test_samples": 1511,
+  "total_samples": 10073,
+  "train_columns": [
+    "filename",
+    "qmos",
+    "sd",
+    "votes",
+    "c1",
+    "c2",
+    "c3",
+    "c4",
+    "c5",
+    "artifacts",
+    "blur",
+    "contrast",
+    "colors",
+    "other",
+    "degraded.amount"
+  ],
+  "missing_values": {
+    "filename": 0,
+    "qmos": 0,
+    "sd": 0,
+    "votes": 0,
+    "c1": 0,
+    "c2": 0,
+    "c3": 0,
+    "c4": 0,
+    "c5": 0,
+    "artifacts": 0,
+    "blur": 0,
+    "contrast": 0,
+    "colors": 0,
+    "other": 0,
+    "degraded.amount": 0
+  }
+}

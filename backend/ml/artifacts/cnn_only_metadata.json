@@ -1,0 +1,7 @@
+{
+  "model": "CNN-only ResNet18",
+  "architecture": "Pretrained ResNet18",
+  "uses_cv_features": false,
+  "best_epoch": 13,
+  "best_validation_loss": 0.009011593686106304
+}

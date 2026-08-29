@@ -1,0 +1,58 @@
+services:
+
+  mongodb:
+    image: mongo:8
+    container_name: viora-mongodb
+    restart: unless-stopped
+
+    ports:
+      - "27017:27017"
+
+    volumes:
+      - mongodb_data:/data/db
+
+
+  backend:
+    build:
+      context: ./backend
+
+    container_name: viora-backend
+    restart: unless-stopped
+
+    ports:
+      - "8000:8000"
+
+    environment:
+      APP_NAME: ${APP_NAME}
+      APP_VERSION: ${APP_VERSION}
+      MONGODB_URI: mongodb://mongodb:27017
+      DATABASE_NAME: ${DATABASE_NAME}
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB}
+      UPLOAD_DIR: /app/uploads
+      MODEL_NAME: ${MODEL_NAME}
+      MODEL_VERSION: ${MODEL_VERSION}
+
+    volumes:
+      - backend_uploads:/app/uploads
+
+    depends_on:
+      - mongodb
+
+
+  frontend:
+    build:
+      context: ./frontend
+
+    container_name: viora-frontend
+    restart: unless-stopped
+
+    ports:
+      - "5173:5173"
+
+    depends_on:
+      - backend
+
+
+volumes:
+  mongodb_data:
+  backend_uploads:

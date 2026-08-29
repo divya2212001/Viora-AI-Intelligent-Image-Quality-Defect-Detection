@@ -1,0 +1,25 @@
+{
+  "model": "Random Forest CV Baseline",
+  "features": [
+    "brightness",
+    "contrast",
+    "sharpness",
+    "noise_level",
+    "entropy",
+    "saturation",
+    "dark_pixel_ratio",
+    "bright_pixel_ratio"
+  ],
+  "validation": {
+    "MAE_0_to_5": 0.39979841652617276,
+    "RMSE_0_to_5": 0.5123817325590414,
+    "PLCC": 0.6913281237785949,
+    "SRCC": 0.6787067325615636
+  },
+  "test": {
+    "MAE_0_to_5": 0.3957902849976863,
+    "RMSE_0_to_5": 0.5085525182960937,
+    "PLCC": 0.6894180619580618,
+    "SRCC": 0.6736018190834724
+  }
+}

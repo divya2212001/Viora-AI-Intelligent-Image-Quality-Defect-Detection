@@ -1,0 +1,45 @@
+{
+  "test_samples": 1511,
+  "quality": {
+    "MAE_0_to_5": 0.2883172631263733,
+    "RMSE_0_to_5": 0.36491929197285367,
+    "PLCC": 0.8565741777420044,
+    "SRCC": 0.8155912215431004
+  },
+  "defects": {
+    "artifacts": {
+      "mae": 0.05222877860069275,
+      "rmse": 0.07735090607955146,
+      "pearson": 0.6495746374130249,
+      "spearman": 0.5606006188225773
+    },
+    "blur": {
+      "mae": 0.08893084526062012,
+      "rmse": 0.12403700596636903,
+      "pearson": 0.8208640217781067,
+      "spearman": 0.8039787406360845
+    },
+    "contrast": {
+      "mae": 0.04831003397703171,
+      "rmse": 0.06757775386531988,
+      "pearson": 0.6439083814620972,
+      "spearman": 0.6257444445224639
+    },
+    "colors": {
+      "mae": 0.044723592698574066,
+      "rmse": 0.06601270296751464,
+      "pearson": 0.6751648783683777,
+      "spearman": 0.5998471019770282
+    },
+    "other": {
+      "mae": 0.015033893287181854,
+      "rmse": 0.0181032743777952,
+      "pearson": -0.004695560783147812,
+      "spearman": 0.0008130762031329261
+    }
+  },
+  "model": {
+    "architecture": "Pretrained ResNet18 + OpenCV features",
+    "checkpoint": "/Users/divyanjaligopisetty/Viora-AI-Intelligent-Image-Quality-Defect-Detection/backend/ml/artifacts/image_quality_model.pt"
+  }
+}

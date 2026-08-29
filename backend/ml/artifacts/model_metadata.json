@@ -1,0 +1,26 @@
+{
+  "model_name": "KonIQ++ Hybrid Image Quality Model",
+  "model_version": "1.0.0",
+  "architecture": "Pretrained ResNet18 + OpenCV features",
+  "quality_target": "qmos normalized to 0-1",
+  "defect_targets": [
+    "artifacts",
+    "blur",
+    "contrast",
+    "colors",
+    "other"
+  ],
+  "cv_features": [
+    "brightness",
+    "contrast",
+    "sharpness",
+    "noise_level",
+    "entropy",
+    "saturation",
+    "dark_pixel_ratio",
+    "bright_pixel_ratio"
+  ],
+  "best_epoch": 18,
+  "best_validation_loss": 0.006235125388957506,
+  "random_seed": 42
+}
