@@ -78,6 +78,8 @@ class Settings:
                     "http://127.0.0.1:5173",
                     "http://viora-ai-intelligent-image-quality.vercel.app",
                     "https://viora-ai-intelligent-image-quality.vercel.app",
+                    "https://viora-ai-intelligent-image-quality.onrender.com",
+                    
                 )
             ),
         ).split(",")
