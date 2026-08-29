@@ -22,9 +22,13 @@ from ml.config import (
     EARLY_STOPPING_PATIENCE,
 )
 
-from dataset import KonIQDataset
+from ml.dataset import KonIQDataset
 
 from ml.model import ImageQualityNet
+
+
+CANDIDATE_MODEL_PATH = ARTIFACTS_DIR / "image_quality_model_candidate.pt"
+CANDIDATE_METADATA_PATH = ARTIFACTS_DIR / "model_metadata_candidate.json"
 
 
 def seed_everything():
@@ -54,9 +58,9 @@ def calculate_feature_statistics(
 
     import cv2
 
-    from config import IMAGE_DIR
+    from ml.config import IMAGE_DIR
 
-    from features import extract_features
+    from ml.features import extract_features
 
     import pandas as pd
 
@@ -251,11 +255,15 @@ def main():
         )
 
     # FEATURE NORMALIZATION
-    feature_mean, feature_std = (
-        calculate_feature_statistics(
-            train_csv
-        )
-    )
+    mean_path = ARTIFACTS_DIR / "feature_mean.npy"
+    std_path = ARTIFACTS_DIR / "feature_std.npy"
+    if mean_path.exists() and std_path.exists():
+        # These artifacts were fitted on train.csv by the existing quality
+        # training pipeline. Reusing them preserves its preprocessing exactly.
+        feature_mean = np.load(mean_path)
+        feature_std = np.load(std_path)
+    else:
+        feature_mean, feature_std = calculate_feature_statistics(train_csv)
 
     np.save(
         ARTIFACTS_DIR
@@ -294,6 +302,7 @@ def main():
         feature_mean,
         feature_std,
         training=True,
+        synthetic_defects=True,
     )
 
     validation_dataset = KonIQDataset(
@@ -301,6 +310,7 @@ def main():
         feature_mean,
         feature_std,
         training=False,
+        synthetic_defects=True,
     )
 
     train_loader = DataLoader(
@@ -330,17 +340,28 @@ def main():
         ),
     ).to(device)
 
-    # LOSS
-    quality_loss_fn = (
-        torch.nn.SmoothL1Loss()
-    )
+    # Preserve the previously validated qMOS regressor and retrain only the
+    # expanded defect head.  The legacy checkpoint has five unrelated KonIQ++
+    # annotation outputs, so its defect-head weights are intentionally skipped.
+    legacy_path = ARTIFACTS_DIR / "image_quality_model.pt"
+    legacy_checkpoint = torch.load(legacy_path, map_location=device)
+    legacy_state = legacy_checkpoint["model_state_dict"]
+    compatible_state = {
+        name: value
+        for name, value in legacy_state.items()
+        if name in model.state_dict()
+        and model.state_dict()[name].shape == value.shape
+        and not name.startswith("defect_head")
+    }
+    model.load_state_dict(compatible_state, strict=False)
+    for name, parameter in model.named_parameters():
+        parameter.requires_grad = name.startswith("defect_head")
 
-    defect_loss_fn = (
-        torch.nn.SmoothL1Loss()
-    )
+    quality_loss_fn = torch.nn.SmoothL1Loss()
+    defect_loss_fn = torch.nn.BCELoss()
 
     optimizer = torch.optim.AdamW(
-        model.parameters(),
+        (parameter for parameter in model.parameters() if parameter.requires_grad),
         lr=LEARNING_RATE,
         weight_decay=WEIGHT_DECAY,
     )
@@ -419,10 +440,9 @@ def main():
                 )
             )
 
-            loss = (
-                quality_loss
-                + defect_loss
-            )
+            # Quality features and backbone are frozen, so this is a true
+            # defect-head fine-tune and cannot alter held-out qMOS metrics.
+            loss = defect_loss
 
             loss.backward()
 
@@ -518,6 +538,11 @@ def main():
                     "defect_names":
                         DEFECT_NAMES,
 
+                    "defect_target_source": (
+                        "deterministic synthetic degradations applied after "
+                        "the train/validation/test image split"
+                    ),
+
                     "image_size":
                         224,
 
@@ -527,12 +552,11 @@ def main():
                     "best_epoch":
                         best_epoch,
                 },
-                ARTIFACTS_DIR
-                / "image_quality_model.pt",
+                CANDIDATE_MODEL_PATH,
             )
 
             print(
-                "✓ Best model saved"
+                "✓ Best candidate model saved"
             )
 
         else:
@@ -564,7 +588,7 @@ def main():
             "KonIQ++ Hybrid Image Quality Model",
 
         "model_version":
-            "1.0.0",
+            "1.1.0-six-label-candidate",
 
         "architecture":
             "Pretrained ResNet18 + OpenCV features",
@@ -574,6 +598,12 @@ def main():
 
         "defect_targets":
             DEFECT_NAMES,
+
+        "defect_target_source": (
+            "Deterministic synthetic blur, underexposure, overexposure, "
+            "noise, corruption, and visual-defect transformations. KonIQ++ "
+            "does not natively label these six categories."
+        ),
 
         "cv_features":
             FEATURE_NAMES,
@@ -588,11 +618,7 @@ def main():
             RANDOM_SEED,
     }
 
-    with open(
-        ARTIFACTS_DIR
-        / "model_metadata.json",
-        "w",
-    ) as file:
+    with CANDIDATE_METADATA_PATH.open("w") as file:
 
         json.dump(
             metadata,
@@ -601,7 +627,7 @@ def main():
         )
 
     print(
-        "\nTraining complete."
+        "\nTraining complete. Candidate checkpoint awaits held-out validation."
     )
 
 

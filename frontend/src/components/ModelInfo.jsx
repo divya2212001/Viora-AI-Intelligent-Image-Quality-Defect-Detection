@@ -65,7 +65,8 @@ function ModelInfo() {
                 </span>
 
                 <strong>
-                    Hybrid CNN + Computer Vision
+                    {model?.architecture ||
+                        "Hybrid CNN + Computer Vision"}
                 </strong>
 
             </div>

@@ -1,4 +1,6 @@
 import json
+import os
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -11,8 +13,13 @@ from scipy.stats import (
 )
 
 from sklearn.metrics import (
+    average_precision_score,
+    f1_score,
     mean_absolute_error,
     mean_squared_error,
+    precision_score,
+    recall_score,
+    roc_auc_score,
 )
 
 from torch.utils.data import DataLoader
@@ -27,7 +34,7 @@ from ml.config import (
     REPORTS_DIR,
 )
 
-from dataset import KonIQDataset
+from ml.dataset import KonIQDataset
 from ml.model import ImageQualityNet
 
 
@@ -282,10 +289,25 @@ def main():
         feature_mean,
         feature_std,
         training=False,
+        synthetic_defects=False,
     )
 
     test_loader = DataLoader(
         test_dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+        num_workers=NUM_WORKERS,
+    )
+
+    defect_test_dataset = KonIQDataset(
+        test_csv,
+        feature_mean,
+        feature_std,
+        training=False,
+        synthetic_defects=True,
+    )
+    defect_test_loader = DataLoader(
+        defect_test_dataset,
         batch_size=BATCH_SIZE,
         shuffle=False,
         num_workers=NUM_WORKERS,
@@ -298,10 +320,10 @@ def main():
 
     # LOAD TRAINED MODEL
 
-    model_file = (
-        ARTIFACTS_DIR
-        / "image_quality_model.pt"
-    )
+    model_file = Path(os.environ.get(
+        "MODEL_CHECKPOINT_PATH",
+        str(ARTIFACTS_DIR / "image_quality_model.pt"),
+    ))
 
     if not model_file.exists():
 
@@ -402,6 +424,16 @@ def main():
                 .numpy()
             )
 
+    # The qMOS metrics above use clean, untouched held-out images. Defect
+    # metrics use separate, known degradations of those same held-out images.
+    true_defects = []
+    predicted_defects = []
+    with torch.no_grad():
+        for images, features, _, defects in defect_test_loader:
+            _, defect_pred = model(images.to(device), features.to(device))
+            true_defects.extend(defects.numpy())
+            predicted_defects.extend(defect_pred.cpu().numpy())
+
     # CONVERT TO NUMPY
 
     true_quality = np.asarray(
@@ -496,7 +528,8 @@ def main():
         predicted_quality_5,
     )
 
-    # DEFECT METRICS
+    # DEFECT METRICS. These are binary metrics against the deterministic
+    # synthetic degradations applied to held-out image identities.
 
     defect_results = {}
 
@@ -539,6 +572,11 @@ def main():
                 y_true,
                 y_pred,
             ),
+            "precision_at_0_5": float(precision_score(y_true, y_pred >= 0.5, zero_division=0)),
+            "recall_at_0_5": float(recall_score(y_true, y_pred >= 0.5, zero_division=0)),
+            "f1_at_0_5": float(f1_score(y_true, y_pred >= 0.5, zero_division=0)),
+            "roc_auc": float(roc_auc_score(y_true, y_pred)) if len(np.unique(y_true)) > 1 else None,
+            "average_precision": float(average_precision_score(y_true, y_pred)) if len(np.unique(y_true)) > 1 else None,
         }
 
     # CREATE TEST PREDICTION DATAFRAME
@@ -725,9 +763,10 @@ def main():
         },
     }
 
-    metrics_file = (
-        REPORTS_DIR
-        / "metrics.json"
+    metrics_file = REPORTS_DIR / (
+        "six_label_defect_evaluation.json"
+        if model_file.name == "image_quality_model_candidate.pt"
+        else "metrics.json"
     )
 
     with open(

@@ -43,16 +43,19 @@ LEARNING_RATE = 1e-4
 
 WEIGHT_DECAY = 1e-4
 
-NUM_WORKERS = 2
+# Keep this portable for local development and sandboxed execution where
+# PyTorch shared-memory worker processes are unavailable.
+NUM_WORKERS = 0
 
 EARLY_STOPPING_PATIENCE = 5
 
 DEFECT_NAMES = [
-    "artifacts",
     "blur",
-    "contrast",
-    "colors",
-    "other",
+    "underexposure",
+    "overexposure",
+    "noise",
+    "corruption",
+    "defect",
 ]
 
 FEATURE_NAMES = [

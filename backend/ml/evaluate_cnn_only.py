@@ -95,17 +95,17 @@ def main():
         num_workers=NUM_WORKERS,
     )
 
-    model = CNNOnlyQualityNet(
-        num_defects=len(
-            DEFECT_NAMES
-        )
-    ).to(device)
-
     checkpoint = torch.load(
         ARTIFACTS_DIR
         / "cnn_only_model.pt",
         map_location=device,
     )
+
+    # The archived CNN-only baseline remains a five-output KonIQ++ model.
+    # It is evaluated only for qMOS comparison and is not used by the API.
+    model = CNNOnlyQualityNet(
+        num_defects=len(checkpoint.get("defect_names", DEFECT_NAMES))
+    ).to(device)
 
     model.load_state_dict(
         checkpoint[

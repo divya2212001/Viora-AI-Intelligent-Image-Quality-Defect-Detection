@@ -63,10 +63,6 @@ def main():
         "TEST DATA",
     )
 
-    # ========================================================
-    # DATASET SPLIT SUMMARY
-    # ========================================================
-
     split_summary = {
         "train": len(train),
         "validation": len(val),
@@ -79,10 +75,6 @@ def main():
         split_summary,
         indent=2,
     ))
-
-    # ========================================================
-    # FIND QUALITY COLUMN
-    # ========================================================
 
     quality_candidates = [
         "qmos",
@@ -151,10 +143,6 @@ def main():
 
         plt.close()
 
-    # ========================================================
-    # NUMERIC FEATURE CORRELATIONS
-    # ========================================================
-
     numeric_columns = (
         train
         .select_dtypes(
@@ -186,10 +174,6 @@ def main():
             REPORTS_DIR
             / "eda_quality_correlations.csv"
         )
-
-    # ========================================================
-    # SAVE EDA SUMMARY
-    # ========================================================
 
     summary = {
         "train_samples": len(train),

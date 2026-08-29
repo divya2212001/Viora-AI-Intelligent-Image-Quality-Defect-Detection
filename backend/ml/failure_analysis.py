@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import cv2
 
 from ml.config import (
+    DEFECT_NAMES,
     IMAGE_DIR,
     REPORTS_DIR,
 )
@@ -131,10 +132,6 @@ def main():
         prediction_file
     )
 
-    # ========================================================
-    # Calculate error
-    # ========================================================
-
     df["error"] = (
         df["predicted_qmos"]
         - df["actual_qmos"]
@@ -144,9 +141,16 @@ def main():
         df["error"].abs()
     )
 
-    # ========================================================
-    # WORST CASES
-    # ========================================================
+    actual_columns = [f"actual_{name}" for name in DEFECT_NAMES]
+    predicted_columns = [f"predicted_{name}" for name in DEFECT_NAMES]
+    if all(column in df for column in actual_columns + predicted_columns):
+        df["expected_defect"] = df[actual_columns].idxmax(axis=1).str.removeprefix("actual_")
+        df.loc[df[actual_columns].max(axis=1) == 0, "expected_defect"] = "clean"
+        df["predicted_defect"] = df[predicted_columns].idxmax(axis=1).str.removeprefix("predicted_")
+        df["possible_reason"] = (
+            "Large held-out qMOS error; inspect the image and its labelled "
+            "synthetic degradation before drawing a causal conclusion."
+        )
 
     worst = (
         df.sort_values(
@@ -163,10 +167,6 @@ def main():
         index=False,
     )
 
-    # ========================================================
-    # BEST CASES
-    # ========================================================
-
     best = (
         df.sort_values(
             "absolute_error",
@@ -181,10 +181,6 @@ def main():
         / "best_cases.csv",
         index=False,
     )
-
-    # ========================================================
-    # OVER-PREDICTION CASES
-    # ========================================================
 
     over_prediction = (
         df.sort_values(
@@ -201,10 +197,6 @@ def main():
         index=False,
     )
 
-    # ========================================================
-    # UNDER-PREDICTION CASES
-    # ========================================================
-
     under_prediction = (
         df.sort_values(
             "error",
@@ -219,10 +211,6 @@ def main():
         / "under_prediction_cases.csv",
         index=False,
     )
-
-    # ========================================================
-    # SUMMARY
-    # ========================================================
 
     print(
         f"\nTotal test images: {len(df)}"
@@ -252,10 +240,7 @@ def main():
         f"{df['absolute_error'].median():.4f}"
     )
 
-    # ========================================================
     # LARGE ERROR COUNTS
-    # ========================================================
-
     print(
         "\nLarge-error cases:"
     )
@@ -284,9 +269,7 @@ def main():
             f"({percentage:.2f}%)"
         )
 
-    # ========================================================
     # CONTACT SHEETS
-    # ========================================================
 
     print(
         "\nCreating failure-case images..."
@@ -319,10 +302,7 @@ def main():
         / "under_prediction_contact_sheet.png",
         "Largest Quality Under-Predictions",
     )
-
-    # ========================================================
     # ERROR DISTRIBUTION
-    # ========================================================
 
     plt.figure(
         figsize=(8, 5)

@@ -8,6 +8,7 @@ from fastapi import (
 from app.services.prediction_service import (
     predict_image,
 )
+from app.config import settings
 
 
 router = APIRouter(
@@ -31,9 +32,7 @@ async def predict(
         )
 
 
-    if not file.content_type.startswith(
-        "image/"
-    ):
+    if file.content_type not in settings.ALLOWED_IMAGE_TYPES:
 
         raise HTTPException(
             status_code=400,
@@ -55,6 +54,9 @@ async def predict(
             ),
         )
 
+    if len(image_bytes) > settings.MAX_FILE_SIZE_BYTES:
+        raise HTTPException(status_code=413, detail="Uploaded image exceeds the size limit.")
+
 
     try:
 
@@ -72,6 +74,10 @@ async def predict(
         raise
 
 
+    except ValueError as exc:
+
+        raise HTTPException(status_code=422, detail="The uploaded file is not a decodable image.") from exc
+
     except Exception as exc:
 
         print(
@@ -81,5 +87,5 @@ async def predict(
 
         raise HTTPException(
             status_code=500,
-            detail=str(exc),
+            detail="Image analysis could not be completed. Please try another image.",
         )

@@ -1,7 +1,21 @@
 import {
     formatPercentage,
-    prettifyName,
 } from "../utils/helper";
+
+const defectLabels = {
+    blur: "Blur",
+    underexposure: "Underexposure",
+    overexposure: "Overexposure",
+    noise: "Noise",
+    corruption: "Corruption",
+    defect: "Potential Visual Defect",
+};
+
+function severity(probability) {
+    if (probability >= 0.7) return "High";
+    if (probability >= 0.4) return "Medium";
+    return "Low";
+}
 
 
 function IssueList({
@@ -93,15 +107,14 @@ function IssueList({
                                 <div className="issue-top">
 
                                     <span className="issue-name">
-                                        {prettifyName(
-                                            name
-                                        )}
+                                        {defectLabels[name] || name}
                                     </span>
 
                                     <span className="issue-value">
                                         {formatPercentage(
                                             probability
                                         )}
+                                        {` · ${severity(probability)} severity`}
                                     </span>
 
                                 </div>

@@ -12,6 +12,7 @@ from ml.config import (
 )
 
 from ml.features import extract_features
+from ml.defect_targets import apply_synthetic_defect
 
 
 class KonIQDataset(
@@ -24,6 +25,7 @@ class KonIQDataset(
         feature_mean=None,
         feature_std=None,
         training=False,
+        synthetic_defects=False,
     ):
 
         self.df = pd.read_csv(
@@ -39,6 +41,7 @@ class KonIQDataset(
         )
 
         self.training = training
+        self.synthetic_defects = synthetic_defects
 
     def __len__(self):
 
@@ -71,9 +74,13 @@ class KonIQDataset(
                 f"{image_path}"
             )
 
-        # --------------------------------------------------
-        # OpenCV features from original image
-        # --------------------------------------------------
+        if self.synthetic_defects:
+            image, defects = apply_synthetic_defect(
+                image,
+                str(row["filename"]),
+            )
+        else:
+            defects = None
 
         features = extract_features(
             image
@@ -142,15 +149,11 @@ class KonIQDataset(
         )
 
         # Five human-annotation distortion frequencies.
-        defects = np.array(
-            [
-                float(
-                    row[name]
-                )
-                for name in DEFECT_NAMES
-            ],
-            dtype=np.float32,
-        )
+        if defects is None:
+            # The raw KonIQ++ columns are deliberately not mapped to the six
+            # application classes.  Clean quality evaluation does not use
+            # defect labels; synthetic_defects=True supplies valid targets.
+            defects = np.zeros(len(DEFECT_NAMES), dtype=np.float32)
 
         defect_tensor = torch.tensor(
             defects,

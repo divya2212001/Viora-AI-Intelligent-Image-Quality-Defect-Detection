@@ -1,5 +1,6 @@
 import {
     useEffect,
+    useCallback,
     useState,
 } from "react";
 
@@ -52,14 +53,7 @@ function History() {
         useNavigate();
 
 
-    useEffect(() => {
-
-        loadHistory();
-
-    }, []);
-
-
-    async function loadHistory() {
+    const loadHistory = useCallback(async () => {
 
         setLoading(true);
         setError(null);
@@ -91,7 +85,14 @@ function History() {
             setLoading(false);
 
         }
-    }
+    }, []);
+
+
+    useEffect(() => {
+
+        void Promise.resolve().then(loadHistory);
+
+    }, [loadHistory]);
 
 
     function openAnalysis(

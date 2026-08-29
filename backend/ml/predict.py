@@ -2,8 +2,6 @@ import cv2
 import numpy as np
 import torch
 
-from pathlib import Path
-
 from ml.config import (
     ARTIFACTS_DIR,
     DEFECT_NAMES,
@@ -21,20 +19,11 @@ class QualityPredictor:
         self,
     ):
 
-        # =====================================================
-        # DEVICE
-        # =====================================================
-
         self.device = torch.device(
             "cuda"
             if torch.cuda.is_available()
             else "cpu"
         )
-
-
-        # =====================================================
-        # MODEL PATH
-        # =====================================================
 
         model_path = (
             ARTIFACTS_DIR
@@ -47,34 +36,23 @@ class QualityPredictor:
                 f"Model file not found: {model_path}"
             )
 
-
-        # =====================================================
-        # LOAD MODEL CHECKPOINT
-        # =====================================================
-
         checkpoint = torch.load(
             model_path,
             map_location=self.device,
         )
 
-
-        # =====================================================
-        # CREATE HYBRID MODEL
-        # =====================================================
+        self.defect_names = checkpoint.get("defect_names", DEFECT_NAMES)
+        if not isinstance(self.defect_names, list) or not self.defect_names:
+            raise ValueError("Checkpoint does not declare defect-label metadata.")
 
         self.model = ImageQualityNet(
             num_features=len(
                 FEATURE_NAMES
             ),
             num_defects=len(
-                DEFECT_NAMES
+                self.defect_names
             ),
         )
-
-
-        # =====================================================
-        # LOAD TRAINED WEIGHTS
-        # =====================================================
 
         self.model.load_state_dict(
             checkpoint[
@@ -87,11 +65,6 @@ class QualityPredictor:
         )
 
         self.model.eval()
-
-
-        # =====================================================
-        # LOAD FEATURE NORMALIZATION
-        # =====================================================
 
         self.feature_mean = np.load(
             ARTIFACTS_DIR
@@ -107,20 +80,18 @@ class QualityPredictor:
         # Avoid division by zero.
 
         self.feature_std = np.where(
-            self.feature_std == 0,
+            np.abs(self.feature_std) < 1e-8,
             1.0,
             self.feature_std,
         )
+
+        if self.feature_mean.shape != (len(FEATURE_NAMES),) or self.feature_std.shape != (len(FEATURE_NAMES),):
+            raise ValueError("Feature normalization artifacts do not match the model feature count.")
 
 
         print(
             "QualityPredictor loaded successfully."
         )
-
-
-    # =========================================================
-    # DECODE IMAGE
-    # =========================================================
 
     def decode_image(
         self,
@@ -144,12 +115,6 @@ class QualityPredictor:
             )
 
         return image
-
-
-    # =========================================================
-    # PREPARE MODEL INPUTS
-    # =========================================================
-
     def prepare_inputs(
         self,
         image_bytes,
@@ -164,18 +129,10 @@ class QualityPredictor:
             feature_tensor
         """
 
-        # -----------------------------------------------------
-        # 1. Decode image
-        # -----------------------------------------------------
-
         image = self.decode_image(
             image_bytes
         )
 
-
-        # -----------------------------------------------------
-        # 2. Extract OpenCV features
-        # -----------------------------------------------------
 
         features = extract_features(
             image
@@ -187,10 +144,6 @@ class QualityPredictor:
         )
 
 
-        # -----------------------------------------------------
-        # 3. Validate feature count
-        # -----------------------------------------------------
-
         if len(features) != len(
             FEATURE_NAMES
         ):
@@ -200,11 +153,6 @@ class QualityPredictor:
                 f"Expected {len(FEATURE_NAMES)}, "
                 f"got {len(features)}."
             )
-
-
-        # -----------------------------------------------------
-        # 4. Normalize CV features
-        # -----------------------------------------------------
 
         normalized_features = (
             features
@@ -216,11 +164,6 @@ class QualityPredictor:
                 np.float32
             )
         )
-
-
-        # -----------------------------------------------------
-        # 5. Prepare image for ResNet18
-        # -----------------------------------------------------
 
         rgb = cv2.cvtColor(
             image,
@@ -262,10 +205,6 @@ class QualityPredictor:
         )
 
 
-        # -----------------------------------------------------
-        # 6. Prepare CV feature tensor
-        # -----------------------------------------------------
-
         feature_tensor = (
             torch.tensor(
                 normalized_features,
@@ -281,19 +220,11 @@ class QualityPredictor:
             feature_tensor,
         )
 
-
-    # =========================================================
-    # PREDICTION
-    # =========================================================
-
     def predict(
         self,
         image_bytes,
     ):
 
-        # -----------------------------------------------------
-        # Prepare inputs
-        # -----------------------------------------------------
 
         (
             image_tensor,
@@ -302,10 +233,6 @@ class QualityPredictor:
             image_bytes
         )
 
-
-        # -----------------------------------------------------
-        # Model inference
-        # -----------------------------------------------------
 
         with torch.no_grad():
 
@@ -317,9 +244,7 @@ class QualityPredictor:
             )
 
 
-        # -----------------------------------------------------
-        # Quality
-        # -----------------------------------------------------
+        raw_features = extract_features(self.decode_image(image_bytes))
 
         quality = float(
             quality.cpu().item()
@@ -335,40 +260,30 @@ class QualityPredictor:
                 quality,
             ),
         )
-
-
-        # -----------------------------------------------------
-        # Defects
-        # -----------------------------------------------------
-
         defects = (
             defects
             .cpu()
             .numpy()[0]
         )
 
-
-        # -----------------------------------------------------
-        # qMOS
-        # -----------------------------------------------------
-
         qmos = (
             quality * 5.0
         )
 
-
-        # -----------------------------------------------------
-        # Quality score
-        # -----------------------------------------------------
+        if qmos >= 4.0:
+            quality_label = "Excellent"
+        elif qmos >= 3.5:
+            quality_label = "Good"
+        elif qmos >= 2.5:
+            quality_label = "Fair"
+        elif qmos >= 1.5:
+            quality_label = "Poor"
+        else:
+            quality_label = "Very Poor"
 
         quality_score = (
             quality * 100.0
         )
-
-
-        # -----------------------------------------------------
-        # Defect dictionary
-        # -----------------------------------------------------
 
         defect_scores = {
 
@@ -378,27 +293,10 @@ class QualityPredictor:
             )
 
             for name, value in zip(
-                DEFECT_NAMES,
+                self.defect_names,
                 defects,
             )
         }
-
-
-        # -----------------------------------------------------
-        # Normalized CV features
-        # -----------------------------------------------------
-
-        features = (
-            feature_tensor
-            .detach()
-            .cpu()
-            .numpy()[0]
-        )
-
-
-        # -----------------------------------------------------
-        # Final result
-        # -----------------------------------------------------
 
         return {
 
@@ -417,6 +315,8 @@ class QualityPredictor:
             "defects":
                 defect_scores,
 
+            "quality_label": quality_label,
+
             "statistics": {
 
                 name: round(
@@ -426,90 +326,7 @@ class QualityPredictor:
 
                 for name, value in zip(
                     FEATURE_NAMES,
-                    features,
+                    raw_features,
                 )
             },
         }
-
-
-    # =========================================================
-    # GRAD-CAM
-    # =========================================================
-
-    def generate_gradcam(
-        self,
-        image_bytes,
-    ):
-        """
-        Generate a Grad-CAM explanation for the
-        predicted image quality.
-
-        The Grad-CAM is generated from the final
-        convolutional layer of ResNet18.
-        """
-
-        # -----------------------------------------------------
-        # Import here to avoid circular imports
-        # -----------------------------------------------------
-
-        from app.services.explainability_service import (
-            generate_gradcam,
-        )
-
-
-        # -----------------------------------------------------
-        # Prepare inputs
-        # -----------------------------------------------------
-
-        (
-            image_tensor,
-            feature_tensor,
-        ) = self.prepare_inputs(
-            image_bytes
-        )
-
-
-        # -----------------------------------------------------
-        # Get original image
-        # -----------------------------------------------------
-
-        original_image = (
-            self.decode_image(
-                image_bytes
-            )
-        )
-
-
-        # -----------------------------------------------------
-        # Grad-CAM output directory
-        # -----------------------------------------------------
-
-        from app.config import settings
-
-        output_dir = (
-            Path(
-                settings.UPLOAD_DIR
-            )
-            / "gradcam"
-        )
-
-
-        # -----------------------------------------------------
-        # Generate heatmap
-        # -----------------------------------------------------
-
-        filename = generate_gradcam(
-
-            model=self.model,
-
-            image_tensor=image_tensor,
-
-            feature_tensor=feature_tensor,
-
-            original_image=original_image,
-
-            output_dir=output_dir,
-        )
-
-
-        return filename

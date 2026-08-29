@@ -3,12 +3,6 @@ const API_URL =
     "http://127.0.0.1:8000";
 
 
-/*
- * ==========================================
- * PREDICT IMAGE
- * ==========================================
- */
-
 export async function predictImage(file) {
 
     const formData = new FormData();
@@ -43,13 +37,6 @@ export async function predictImage(file) {
 }
 
 
-
-/*
- * ==========================================
- * GET HISTORY
- * ==========================================
- */
-
 export async function getHistory(
     limit = 20
 ) {
@@ -71,13 +58,6 @@ export async function getHistory(
 }
 
 
-
-/*
- * ==========================================
- * GET SINGLE ANALYSIS
- * ==========================================
- */
-
 export async function getAnalysis(
     analysisId
 ) {
@@ -98,13 +78,6 @@ export async function getAnalysis(
     return response.json();
 }
 
-
-
-/*
- * ==========================================
- * GET MODEL INFORMATION
- * ==========================================
- */
 
 export async function deleteAnalysis(
     analysisId
@@ -148,14 +121,6 @@ export async function getModelInfo() {
 
     return response.json();
 }
-
-
-
-/*
- * ==========================================
- * API URL
- * ==========================================
- */
 
 export {
     API_URL,

@@ -218,6 +218,8 @@ def predict_image(
                 original_image=image,
 
                 output_dir=gradcam_dir,
+
+                output_filename=f"{prediction_id}.jpg",
             )
         )
 
@@ -292,8 +294,14 @@ def predict_image(
     )
 
 
-    predictions_collection.insert_one(
-        document
-    )
+    try:
+        predictions_collection.insert_one(document)
+        result["persistence_status"] = "stored"
+    except Exception as exc:
+        # An unavailable database must not discard an otherwise valid model
+        # result or make Grad-CAM unusable. History becomes available again
+        # once MongoDB is restored and future results are stored.
+        print(f"WARNING: prediction was not persisted: {exc}")
+        result["persistence_status"] = "unavailable"
 
     return result

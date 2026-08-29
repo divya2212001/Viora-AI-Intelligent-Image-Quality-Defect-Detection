@@ -40,18 +40,14 @@ def get_history(
     results = []
 
     for document in cursor:
-
         document.pop(
             "_id",
             None,
         )
-
         results.append(
             document
         )
-
     return results
-
 
 @router.get(
     "/analyses/{prediction_id}"
@@ -84,7 +80,6 @@ def get_analysis(
 
     return document
 
-
 @router.delete(
     "/analyses/{prediction_id}"
 )
@@ -108,7 +103,6 @@ def delete_analysis(
             status_code=404,
             detail="Analysis not found.",
         )
-
 
     image_path = (
         settings.UPLOAD_DIR /
@@ -135,7 +129,6 @@ def delete_analysis(
         if gradcam_path.exists():
 
             gradcam_path.unlink()
-
 
     predictions_collection.delete_one(
         {

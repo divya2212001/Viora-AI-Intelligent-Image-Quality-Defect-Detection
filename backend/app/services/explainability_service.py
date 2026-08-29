@@ -11,6 +11,7 @@ def generate_gradcam(
     feature_tensor,
     original_image,
     output_dir,
+    output_filename=None,
 ):
 
     """
@@ -19,24 +20,13 @@ def generate_gradcam(
     """
 
     model.eval()
-
-
-    # =====================================================
-    # TARGET CNN LAYER
-    # =====================================================
-
     target_layer = (
         model.backbone.layer4[-1].conv2
     )
 
-
     activations = []
     gradients = []
 
-
-    # =====================================================
-    # FORWARD HOOK
-    # =====================================================
 
     def forward_hook(
         module,
@@ -48,17 +38,11 @@ def generate_gradcam(
             output
         )
 
-
-    # =====================================================
-    # BACKWARD HOOK
-    # =====================================================
-
     def backward_hook(
         module,
         grad_input,
         grad_output,
     ):
-
         gradients.append(
             grad_output[0]
         )
@@ -70,7 +54,6 @@ def generate_gradcam(
         )
     )
 
-
     backward_handle = (
         target_layer.register_full_backward_hook(
             backward_hook
@@ -80,54 +63,30 @@ def generate_gradcam(
 
     try:
 
-        # =================================================
-        # ENABLE GRADIENTS
-        # =================================================
-
         model.zero_grad(
             set_to_none=True
         )
-
-
-        # =================================================
-        # FORWARD
-        # =================================================
 
         quality, _ = model(
             image_tensor,
             feature_tensor,
         )
 
-
         quality_score = (
             quality[0]
         )
 
-
-        # =================================================
-        # BACKWARD
-        # =================================================
-
         quality_score.backward()
 
-
         if not activations:
-
             raise RuntimeError(
                 "Grad-CAM activations were not captured."
             )
-
-
         if not gradients:
 
             raise RuntimeError(
                 "Grad-CAM gradients were not captured."
             )
-
-
-        # =================================================
-        # TENSOR → NUMPY
-        # =================================================
 
         activation = (
             activations[0]
@@ -136,7 +95,6 @@ def generate_gradcam(
             .numpy()[0]
         )
 
-
         gradient = (
             gradients[0]
             .detach()
@@ -144,26 +102,15 @@ def generate_gradcam(
             .numpy()[0]
         )
 
-
-        # =================================================
-        # GLOBAL AVERAGE POOLING
-        # =================================================
-
         weights = np.mean(
             gradient,
             axis=(1, 2),
         )
 
-
-        # =================================================
-        # WEIGHTED ACTIVATION MAP
-        # =================================================
-
         cam = np.zeros(
             activation.shape[1:],
             dtype=np.float32,
         )
-
 
         for index, weight in enumerate(
             weights
@@ -174,41 +121,21 @@ def generate_gradcam(
                 * activation[index]
             )
 
-
-        # =================================================
-        # RELU
-        # =================================================
-
         cam = np.maximum(
             cam,
             0,
         )
 
-
-        # =================================================
-        # NORMALIZATION
-        # =================================================
-
         maximum = cam.max()
-
-
         if maximum > 0:
 
             cam = (
                 cam
                 / maximum
             )
-
-
-        # =================================================
-        # RESIZE
-        # =================================================
-
         height, width = (
             original_image.shape[:2]
         )
-
-
         cam = cv2.resize(
             cam,
             (
@@ -218,29 +145,14 @@ def generate_gradcam(
             interpolation=cv2.INTER_LINEAR,
         )
 
-
-        # =================================================
-        # 0 → 255
-        # =================================================
-
         heatmap = np.uint8(
             cam * 255
         )
-
-
-        # =================================================
-        # APPLY COLOR MAP
-        # =================================================
 
         heatmap = cv2.applyColorMap(
             heatmap,
             cv2.COLORMAP_JET,
         )
-
-
-        # =================================================
-        # OVERLAY
-        # =================================================
 
         overlay = cv2.addWeighted(
             original_image,
@@ -249,12 +161,6 @@ def generate_gradcam(
             0.45,
             0,
         )
-
-
-        # =================================================
-        # SAVE
-        # =================================================
-
         output_dir = Path(
             output_dir
         )
@@ -266,14 +172,9 @@ def generate_gradcam(
         )
 
 
-        filename = (
+        filename = output_filename or (
             "gradcam_"
-            + str(
-                np.random.randint(
-                    100000,
-                    999999,
-                )
-            )
+            + str(np.random.randint(100000, 999999))
             + ".jpg"
         )
 
@@ -303,5 +204,4 @@ def generate_gradcam(
     finally:
 
         forward_handle.remove()
-
         backward_handle.remove()

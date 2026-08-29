@@ -57,14 +57,7 @@ function Results() {
 
     useEffect(() => {
 
-        if (location.state?.result) {
-
-            setResult(
-                location.state.result
-            );
-
-            return;
-        }
+        if (location.state?.result) return;
 
 
         if (!id) {

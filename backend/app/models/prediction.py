@@ -7,11 +7,6 @@ def create_prediction_document(
 ):
 
     return {
-
-  
-        # IDENTIFICATION
-  
-
         "prediction_id":
             prediction[
                 "prediction_id"
@@ -19,12 +14,6 @@ def create_prediction_document(
 
         "filename":
             filename,
-
-
-  
-        # IMAGE
-  
-
         "image_url":
             prediction.get(
                 "image_url"
@@ -34,11 +23,6 @@ def create_prediction_document(
             prediction.get(
                 "gradcam_url"
             ),
-
-
-  
-        # QUALITY
-  
 
         "quality_score":
             prediction[
@@ -54,42 +38,18 @@ def create_prediction_document(
             prediction[
                 "quality_label"
             ],
-
-
-  
-        # DEFECTS
-  
-
         "defects":
             prediction[
                 "defects"
             ],
-
-
-  
-        # COMPUTER VISION STATISTICS
-  
-
         "statistics":
             prediction[
                 "statistics"
             ],
-
-
-  
-        # RECOMMENDATION
-  
-
         "recommendation":
             prediction[
                 "recommendation"
             ],
-
-
-  
-        # TIMESTAMP
-  
-
         "created_at":
             datetime.now(
                 timezone.utc

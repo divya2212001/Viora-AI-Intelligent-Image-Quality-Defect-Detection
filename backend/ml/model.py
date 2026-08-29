@@ -14,7 +14,7 @@ class ImageQualityNet(
     def __init__(
         self,
         num_features=8,
-        num_defects=5,
+        num_defects=6,
     ):
 
         super().__init__()
