@@ -25,8 +25,11 @@ async def predict(
 
         raise HTTPException(
             status_code=400,
-            detail="File type could not be determined.",
+            detail=(
+                "File type could not be determined."
+            ),
         )
+
 
     if not file.content_type.startswith(
         "image/"
@@ -34,17 +37,24 @@ async def predict(
 
         raise HTTPException(
             status_code=400,
-            detail="Please upload an image file.",
+            detail=(
+                "Please upload an image file."
+            ),
         )
 
+
     image_bytes = await file.read()
+
 
     if not image_bytes:
 
         raise HTTPException(
             status_code=400,
-            detail="Uploaded image is empty.",
+            detail=(
+                "Uploaded image is empty."
+            ),
         )
+
 
     try:
 
@@ -53,9 +63,21 @@ async def predict(
             file.filename or "image.jpg",
         )
 
+
         return result
 
+
+    except HTTPException:
+
+        raise
+
+
     except Exception as exc:
+
+        print(
+            "Prediction error:",
+            repr(exc)
+        )
 
         raise HTTPException(
             status_code=500,

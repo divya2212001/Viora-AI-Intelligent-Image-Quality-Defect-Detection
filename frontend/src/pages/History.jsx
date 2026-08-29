@@ -11,7 +11,8 @@ import Header from "../components/Header";
 
 import {
     getHistory,
-    getAnalysis,
+    deleteAnalysis,
+    API_URL,
 } from "../services/api";
 
 import {
@@ -32,8 +33,13 @@ function History() {
     ] = useState(true);
 
     const [
-        selectedId,
-        setSelectedId,
+        deletingId,
+        setDeletingId,
+    ] = useState(null);
+
+    const [
+        confirmId,
+        setConfirmId,
     ] = useState(null);
 
     const [
@@ -56,7 +62,6 @@ function History() {
     async function loadHistory() {
 
         setLoading(true);
-
         setError(null);
 
         try {
@@ -84,11 +89,32 @@ function History() {
         } finally {
 
             setLoading(false);
+
         }
     }
 
 
-    async function openAnalysis(
+    function openAnalysis(
+        predictionId
+    ) {
+
+        if (!predictionId) {
+
+            setError(
+                "This analysis does not have a valid ID."
+            );
+
+            return;
+        }
+
+
+        navigate(
+            `/results/${predictionId}`
+        );
+    }
+
+
+    async function handleDelete(
         predictionId
     ) {
 
@@ -96,38 +122,74 @@ function History() {
             return;
         }
 
+
         try {
 
-            setSelectedId(
+            setDeletingId(
                 predictionId
             );
 
-            const result =
-                await getAnalysis(
-                    predictionId
-                );
+            setError(null);
 
-            navigate(
-                "/results",
-                {
-                    state: {
-                        result,
-                        fromHistory: true,
-                    },
-                }
+
+            await deleteAnalysis(
+                predictionId
             );
+
+
+            setHistory(
+                (prev) =>
+                    prev.filter(
+                        (item) =>
+                            (
+                                item.prediction_id ||
+                                item._id
+                            ) !==
+                            predictionId
+                    )
+            );
+
+
+            setConfirmId(null);
 
         } catch (err) {
 
             setError(
                 err.message ||
-                "Unable to open analysis."
+                "Unable to delete analysis."
             );
 
         } finally {
 
-            setSelectedId(null);
+            setDeletingId(null);
+
         }
+    }
+
+
+    function getImageUrl(
+        imageUrl
+    ) {
+
+        if (!imageUrl) {
+            return null;
+        }
+
+
+        if (
+            imageUrl.startsWith(
+                "http://"
+            ) ||
+            imageUrl.startsWith(
+                "https://"
+            )
+        ) {
+
+            return imageUrl;
+        }
+
+
+        return `${API_URL}${imageUrl}`;
     }
 
 
@@ -145,23 +207,23 @@ function History() {
                     <div>
 
                         <span className="eyebrow">
-                            MONGODB HISTORY
+                            ANALYSIS HISTORY
                         </span>
 
                         <h1>
-                            Analysis History
+                            Past Analyses
                         </h1>
 
                         <p>
-                            Previously analyzed images.
-                            Click any analysis to view
-                            the complete summary.
+                            Review or remove previously
+                            analyzed images.
                         </p>
 
                     </div>
 
 
                     <button
+                        type="button"
                         className="primary-button"
                         onClick={() =>
                             navigate("/")
@@ -191,7 +253,9 @@ function History() {
                 {error && (
 
                     <div className="error-box">
+
                         {error}
+
                     </div>
 
                 )}
@@ -203,6 +267,10 @@ function History() {
 
                         <div className="empty-state">
 
+                            <div className="empty-icon">
+                                ◇
+                            </div>
+
                             <h3>
                                 No analyses yet
                             </h3>
@@ -212,116 +280,294 @@ function History() {
                                 analyses will appear here.
                             </p>
 
+                            <button
+                                type="button"
+                                className="primary-button"
+                                onClick={() =>
+                                    navigate("/")
+                                }
+                            >
+                                Analyze an Image
+                            </button>
+
                         </div>
 
                     )}
 
 
-                <div className="history-list">
+                {!loading &&
+                    history.length > 0 && (
 
-                    {history.map(
-                        (item, index) => {
+                        <div className="history-list">
 
-                            const qmos =
-                                Number(
-                                    item.qmos ?? 0
-                                );
+                            {history.map(
+                                (
+                                    item,
+                                    index
+                                ) => {
 
-
-                            const score =
-                                Number(
-                                    item.quality_score ??
-                                    qmos * 20
-                                );
-
-
-                            const id =
-                                item.prediction_id ||
-                                item._id;
+                                    const qmos =
+                                        Number(
+                                            item.qmos ?? 0
+                                        );
 
 
-                            return (
-
-                                <button
-                                    className="history-card"
-                                    key={
-                                        id ||
-                                        index
-                                    }
-                                    onClick={() =>
-                                        openAnalysis(
-                                            id
-                                        )
-                                    }
-                                    disabled={
-                                        selectedId === id
-                                    }
-                                >
-
-                                    <div>
-
-                                        <span className="history-filename">
-                                            {item.filename ||
-                                                "Unknown image"}
-                                        </span>
-
-                                        <span className="history-date">
-                                            {formatDate(
-                                                item.created_at ||
-                                                item.createdAt ||
-                                                item.timestamp
-                                            )}
-                                        </span>
-
-                                    </div>
+                                    const score =
+                                        Number(
+                                            item.quality_score ??
+                                            qmos * 20
+                                        );
 
 
-                                    <div className="history-score">
-
-                                        <strong>
-                                            {qmos.toFixed(
-                                                2
-                                            )}
-                                        </strong>
-
-                                        <span>
-                                            / 5
-                                        </span>
-
-                                    </div>
+                                    const id =
+                                        item.prediction_id ||
+                                        item._id;
 
 
-                                    <div className="history-score">
-
-                                        <strong>
-                                            {score.toFixed(
-                                                1
-                                            )}
-                                        </strong>
-
-                                        <span>
-                                            / 100
-                                        </span>
-
-                                    </div>
+                                    const imageUrl =
+                                        getImageUrl(
+                                            item.image_url
+                                        );
 
 
-                                    <span className="history-open">
+                                    const isDeleting =
+                                        deletingId === id;
 
-                                        {selectedId === id
-                                            ? "Opening..."
-                                            : "View →"}
 
-                                    </span>
+                                    const isConfirming =
+                                        confirmId === id;
 
-                                </button>
 
-                            );
+                                    return (
 
-                        }
+                                        <div
+                                            className="history-card"
+                                            key={
+                                                id ||
+                                                index
+                                            }
+                                        >
+
+                                            <div className="history-image-wrapper">
+
+                                                {imageUrl ? (
+
+                                                    <img
+                                                        src={imageUrl}
+                                                        alt={
+                                                            item.filename ||
+                                                            "Analyzed image"
+                                                        }
+                                                        className="history-image"
+                                                        onError={(event) => {
+                                                            event.currentTarget.style.display =
+                                                                "none";
+
+                                                            event.currentTarget
+                                                                .nextElementSibling
+                                                                .style.display =
+                                                                "flex";
+                                                        }}
+                                                    />
+
+                                                ) : null}
+
+
+                                                <div
+                                                    className="history-image-placeholder"
+                                                    style={{
+                                                        display:
+                                                            imageUrl
+                                                                ? "none"
+                                                                : "flex",
+                                                    }}
+                                                >
+
+                                                    <span>
+                                                        🖼️
+                                                    </span>
+
+                                                </div>
+
+                                            </div>
+
+
+                                            <div className="history-info">
+
+                                                <h3 className="history-filename">
+
+                                                    {item.filename ||
+                                                        "Unknown image"}
+
+                                                </h3>
+
+
+                                                <span className="history-date">
+
+                                                    {formatDate(
+                                                        item.created_at ||
+                                                        item.createdAt ||
+                                                        item.timestamp
+                                                    )}
+
+                                                </span>
+
+
+                                                <span
+                                                    className={`history-quality ${(
+                                                        item.quality_label ||
+                                                        ""
+                                                    )
+                                                        .toLowerCase()
+                                                        .replace(
+                                                            /\s+/g,
+                                                            "-"
+                                                        )}`}
+                                                >
+
+                                                    {item.quality_label ||
+                                                        "Unknown"}
+
+                                                </span>
+
+                                            </div>
+
+
+                                            <div className="history-metric">
+
+                                                <span>
+                                                    qMOS
+                                                </span>
+
+                                                <strong>
+                                                    {qmos.toFixed(
+                                                        2
+                                                    )}
+                                                </strong>
+
+                                                <small>
+                                                    / 5
+                                                </small>
+
+                                            </div>
+
+
+                                            <div className="history-metric">
+
+                                                <span>
+                                                    Quality
+                                                </span>
+
+                                                <strong>
+                                                    {score.toFixed(
+                                                        1
+                                                    )}
+                                                </strong>
+
+                                                <small>
+                                                    / 100
+                                                </small>
+
+                                            </div>
+
+
+                                            <div className="history-actions">
+
+                                                <button
+                                                    type="button"
+                                                    className="history-view-button"
+                                                    onClick={() =>
+                                                        openAnalysis(
+                                                            id
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        isDeleting
+                                                    }
+                                                >
+
+                                                    View →
+
+                                                </button>
+
+
+                                                {isConfirming ? (
+
+                                                    <div className="history-delete-confirm">
+
+                                                        <button
+                                                            type="button"
+                                                            className="history-delete-confirm-btn"
+                                                            onClick={() =>
+                                                                handleDelete(
+                                                                    id
+                                                                )
+                                                            }
+                                                            disabled={
+                                                                isDeleting
+                                                            }
+                                                        >
+
+                                                            {isDeleting
+                                                                ? "Deleting..."
+                                                                : "Confirm"}
+
+                                                        </button>
+
+
+                                                        <button
+                                                            type="button"
+                                                            className="history-delete-cancel-btn"
+                                                            onClick={() =>
+                                                                setConfirmId(
+                                                                    null
+                                                                )
+                                                            }
+                                                            disabled={
+                                                                isDeleting
+                                                            }
+                                                        >
+
+                                                            Cancel
+
+                                                        </button>
+
+                                                    </div>
+
+                                                ) : (
+
+                                                    <button
+                                                        type="button"
+                                                        className="history-delete-button"
+                                                        onClick={() =>
+                                                            setConfirmId(
+                                                                id
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            isDeleting
+                                                        }
+                                                        aria-label="Delete analysis"
+                                                    >
+
+                                                        Delete
+
+                                                    </button>
+
+                                                )}
+
+                                            </div>
+
+                                        </div>
+
+                                    );
+
+                                }
+                            )}
+
+                        </div>
+
                     )}
-
-                </div>
 
             </main>
 

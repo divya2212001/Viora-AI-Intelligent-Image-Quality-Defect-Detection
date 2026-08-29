@@ -20,17 +20,7 @@ from app.services.explainability_service import (
     generate_gradcam,
 )
 
-
-# ---------------------------------------------------------
-# Load model ONCE
-# ---------------------------------------------------------
-
 predictor = QualityPredictor()
-
-
-# ---------------------------------------------------------
-# Quality labels
-# ---------------------------------------------------------
 
 def get_quality_label(
     qmos: float,
@@ -50,11 +40,6 @@ def get_quality_label(
 
     return "Very Poor"
 
-
-# ---------------------------------------------------------
-# Recommendation
-# ---------------------------------------------------------
-
 def get_recommendation(
     qmos: float,
     defects: dict,
@@ -67,13 +52,18 @@ def get_recommendation(
             key=defects.get,
         )
 
-        highest_score = defects[
-            highest_defect
-        ]
+        highest_score = float(
+            defects[
+                highest_defect
+            ]
+        )
 
     else:
 
-        highest_defect = "quality issue"
+        highest_defect = (
+            "quality issue"
+        )
+
         highest_score = 0.0
 
 
@@ -84,12 +74,14 @@ def get_recommendation(
             "with minimal detected defects."
         )
 
+
     if qmos >= 3.5:
 
         return (
             "Image quality is good. "
             "Minor quality issues may be present."
         )
+
 
     if qmos >= 2.5:
 
@@ -99,6 +91,7 @@ def get_recommendation(
             f"{highest_defect}."
         )
 
+
     return (
         f"Image quality is low. "
         f"The most prominent detected issue "
@@ -107,75 +100,39 @@ def get_recommendation(
     )
 
 
-# ---------------------------------------------------------
-# Main prediction
-# ---------------------------------------------------------
 
 def predict_image(
     image_bytes: bytes,
     filename: str,
 ):
 
-    # -----------------------------------------------------
-    # 1. Run ML prediction
-    # -----------------------------------------------------
-
     prediction = predictor.predict(
         image_bytes
     )
 
-    qmos = prediction["qmos"]
+    qmos = prediction[
+        "qmos"
+    ]
 
-    defects = prediction["defects"]
-
-
-    # -----------------------------------------------------
-    # 2. Quality information
-    # -----------------------------------------------------
-
-    quality_label = get_quality_label(
-        qmos
+    defects = prediction[
+        "defects"
+    ]
+    quality_label = (
+        get_quality_label(
+            qmos
+        )
     )
 
-    recommendation = get_recommendation(
-        qmos,
-        defects,
+    recommendation = (
+        get_recommendation(
+            qmos,
+            defects,
+        )
     )
-
-
-    # -----------------------------------------------------
-    # 3. Generate prediction ID
-    # -----------------------------------------------------
 
     prediction_id = str(
         uuid4()
     )
-
-
-    # -----------------------------------------------------
-    # 4. Save original image
-    # -----------------------------------------------------
-
-    upload_dir = Path(
-        settings.UPLOAD_DIR
-    )
-
-    upload_dir.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    safe_filename = (
-        f"{prediction_id}.jpg"
-    )
-
-    image_path = (
-        upload_dir
-        / safe_filename
-    )
-
-
-    # Decode image
 
     array = np.frombuffer(
         image_bytes,
@@ -193,28 +150,77 @@ def predict_image(
             "Could not decode uploaded image."
         )
 
+    upload_dir = Path(
+        settings.UPLOAD_DIR
+    )
 
-    # Save original image
+    upload_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
-    cv2.imwrite(
+
+    safe_filename = (
+        f"{prediction_id}.jpg"
+    )
+
+
+    image_path = (
+        upload_dir
+        / safe_filename
+    )
+
+
+    success = cv2.imwrite(
         str(image_path),
         image,
     )
 
 
-    # -----------------------------------------------------
-    # 5. Generate Grad-CAM
-    # -----------------------------------------------------
+    if not success:
+
+        raise RuntimeError(
+            "Failed to save uploaded image."
+        )
+
+
+    image_url = (
+        f"/uploads/{safe_filename}"
+    )
+
 
     gradcam_url = None
 
+
     try:
 
+        (
+            image_tensor,
+            feature_tensor,
+        ) = predictor.prepare_inputs(
+            image_bytes
+        )
+
+        gradcam_dir = (
+            upload_dir
+            / "gradcam"
+        )
+
+
         gradcam_filename = (
-            predictor.generate_gradcam(
-                image_bytes
+            generate_gradcam(
+                model=predictor.model,
+
+                image_tensor=image_tensor,
+
+                feature_tensor=feature_tensor,
+
+                original_image=image,
+
+                output_dir=gradcam_dir,
             )
         )
+
 
         if gradcam_filename:
 
@@ -223,27 +229,16 @@ def predict_image(
                 f"{gradcam_filename}"
             )
 
+
     except Exception as error:
 
         print(
             "WARNING: Grad-CAM generation failed:"
         )
 
-        print(error)
-
-
-    # -----------------------------------------------------
-    # 6. Image URL
-    # -----------------------------------------------------
-
-    image_url = (
-        f"/uploads/{safe_filename}"
-    )
-
-
-    # -----------------------------------------------------
-    # 7. Final result
-    # -----------------------------------------------------
+        print(
+            repr(error)
+        )
 
     result = {
 
@@ -283,10 +278,6 @@ def predict_image(
     }
 
 
-    # -----------------------------------------------------
-    # 8. Save to MongoDB
-    # -----------------------------------------------------
-
     document = (
         create_prediction_document(
             filename,
@@ -294,11 +285,15 @@ def predict_image(
         )
     )
 
-    document["_id"] = prediction_id
+
+    # Use prediction ID as MongoDB _id
+    document["_id"] = (
+        prediction_id
+    )
+
 
     predictions_collection.insert_one(
         document
     )
-
 
     return result

@@ -12,67 +12,57 @@ def generate_gradcam(
     original_image,
     output_dir,
 ):
+
     """
-    Generate a Grad-CAM heatmap for the quality prediction
+    Generate Grad-CAM for the quality prediction
     of the Hybrid CNN + CV model.
-
-    Parameters
-    ----------
-    model:
-        Trained ImageQualityNet model.
-
-    image_tensor:
-        Preprocessed image tensor of shape [1, 3, H, W].
-
-    feature_tensor:
-        Normalized OpenCV feature tensor of shape [1, num_features].
-
-    original_image:
-        Original OpenCV BGR image.
-
-    output_dir:
-        Directory where the Grad-CAM image will be saved.
-
-    Returns
-    -------
-    str:
-        Filename of the generated Grad-CAM image.
     """
 
     model.eval()
 
 
-    # 1. Target ResNet18 convolutional layer
-
+    # =====================================================
+    # TARGET CNN LAYER
+    # =====================================================
 
     target_layer = (
         model.backbone.layer4[-1].conv2
     )
 
+
     activations = []
     gradients = []
 
 
-    # 2. Hooks
-
+    # =====================================================
+    # FORWARD HOOK
+    # =====================================================
 
     def forward_hook(
         module,
         input,
         output,
     ):
+
         activations.append(
             output
         )
+
+
+    # =====================================================
+    # BACKWARD HOOK
+    # =====================================================
 
     def backward_hook(
         module,
         grad_input,
         grad_output,
     ):
+
         gradients.append(
             grad_output[0]
         )
+
 
     forward_handle = (
         target_layer.register_forward_hook(
@@ -80,35 +70,53 @@ def generate_gradcam(
         )
     )
 
+
     backward_handle = (
         target_layer.register_full_backward_hook(
             backward_hook
         )
     )
 
+
     try:
 
+        # =================================================
+        # ENABLE GRADIENTS
+        # =================================================
 
-        # 3. Forward pass
-        model.zero_grad()
+        model.zero_grad(
+            set_to_none=True
+        )
+
+
+        # =================================================
+        # FORWARD
+        # =================================================
 
         quality, _ = model(
             image_tensor,
             feature_tensor,
         )
 
-        # Explain the predicted quality score
-        quality_score = quality[0]
+
+        quality_score = (
+            quality[0]
+        )
 
 
-        # 4. Backward pass
+        # =================================================
+        # BACKWARD
+        # =================================================
+
         quality_score.backward()
+
 
         if not activations:
 
             raise RuntimeError(
                 "Grad-CAM activations were not captured."
             )
+
 
         if not gradients:
 
@@ -117,13 +125,17 @@ def generate_gradcam(
             )
 
 
-        # 5. Convert tensors to NumPy
+        # =================================================
+        # TENSOR → NUMPY
+        # =================================================
+
         activation = (
             activations[0]
             .detach()
             .cpu()
             .numpy()[0]
         )
+
 
         gradient = (
             gradients[0]
@@ -133,18 +145,25 @@ def generate_gradcam(
         )
 
 
-        # 6. Global average pooling
+        # =================================================
+        # GLOBAL AVERAGE POOLING
+        # =================================================
+
         weights = np.mean(
             gradient,
             axis=(1, 2),
         )
 
 
-        # 7. Weighted feature maps
+        # =================================================
+        # WEIGHTED ACTIVATION MAP
+        # =================================================
+
         cam = np.zeros(
             activation.shape[1:],
             dtype=np.float32,
         )
+
 
         for index, weight in enumerate(
             weights
@@ -156,26 +175,39 @@ def generate_gradcam(
             )
 
 
-        # 8. ReLU
+        # =================================================
+        # RELU
+        # =================================================
+
         cam = np.maximum(
             cam,
             0,
         )
 
 
-        # 9. Normalize
-        if cam.max() > 0:
+        # =================================================
+        # NORMALIZATION
+        # =================================================
+
+        maximum = cam.max()
+
+
+        if maximum > 0:
 
             cam = (
                 cam
-                / cam.max()
+                / maximum
             )
 
 
-        # 10. Resize heatmap to original image
+        # =================================================
+        # RESIZE
+        # =================================================
+
         height, width = (
             original_image.shape[:2]
         )
+
 
         cam = cv2.resize(
             cam,
@@ -187,20 +219,29 @@ def generate_gradcam(
         )
 
 
-        # 11. Convert to 0-255
+        # =================================================
+        # 0 → 255
+        # =================================================
+
         heatmap = np.uint8(
             cam * 255
         )
 
 
-        # 12. Apply OpenCV heatmap
+        # =================================================
+        # APPLY COLOR MAP
+        # =================================================
+
         heatmap = cv2.applyColorMap(
             heatmap,
             cv2.COLORMAP_JET,
         )
 
 
-        # 13. Overlay heatmap on original image
+        # =================================================
+        # OVERLAY
+        # =================================================
+
         overlay = cv2.addWeighted(
             original_image,
             0.55,
@@ -210,15 +251,20 @@ def generate_gradcam(
         )
 
 
-        # 14. Save
+        # =================================================
+        # SAVE
+        # =================================================
+
         output_dir = Path(
             output_dir
         )
+
 
         output_dir.mkdir(
             parents=True,
             exist_ok=True,
         )
+
 
         filename = (
             "gradcam_"
@@ -231,15 +277,18 @@ def generate_gradcam(
             + ".jpg"
         )
 
+
         output_path = (
             output_dir
             / filename
         )
 
+
         success = cv2.imwrite(
             str(output_path),
             overlay,
         )
+
 
         if not success:
 
@@ -247,7 +296,9 @@ def generate_gradcam(
                 "Failed to save Grad-CAM image."
             )
 
+
         return filename
+
 
     finally:
 

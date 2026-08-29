@@ -1,6 +1,12 @@
 import {
+    useEffect,
+    useState,
+} from "react";
+
+import {
     useLocation,
     useNavigate,
+    useParams,
 } from "react-router-dom";
 
 import Header from "../components/Header";
@@ -10,7 +16,10 @@ import Statistics from "../components/Statistics";
 import HeatmapViewer from "../components/HeatmapViewer";
 import EmptyState from "../components/EmptyState";
 
-import { API_URL } from "../services/api";
+import {
+    API_URL,
+    getAnalysis,
+} from "../services/api";
 
 
 function Results() {
@@ -21,18 +30,154 @@ function Results() {
     const navigate =
         useNavigate();
 
+    const { id } =
+        useParams();
 
-    const result =
-        location.state?.result;
+
+    const [
+        result,
+        setResult,
+    ] = useState(
+        location.state?.result ?? null
+    );
+
+    const [
+        loading,
+        setLoading,
+    ] = useState(
+        !location.state?.result &&
+        Boolean(id)
+    );
+
+    const [
+        error,
+        setError,
+    ] = useState(null);
 
 
-    /*
-     * ------------------------------------------------
-     * NO RESULT
-     * ------------------------------------------------
-     */
+    useEffect(() => {
 
-    if (!result) {
+        if (location.state?.result) {
+
+            setResult(
+                location.state.result
+            );
+
+            return;
+        }
+
+
+        if (!id) {
+            return;
+        }
+
+
+        let cancelled = false;
+
+
+        async function loadResult() {
+
+            setLoading(true);
+            setError(null);
+
+
+            try {
+
+                const data =
+                    await getAnalysis(id);
+
+                if (!cancelled) {
+                    setResult(data);
+                }
+
+            } catch (err) {
+
+                if (!cancelled) {
+
+                    setError(
+                        err.message ||
+                        "Unable to load analysis."
+                    );
+
+                }
+
+            } finally {
+
+                if (!cancelled) {
+                    setLoading(false);
+                }
+
+            }
+        }
+
+
+        loadResult();
+
+
+        return () => {
+            cancelled = true;
+        };
+
+    }, [
+        id,
+        location.state?.result,
+    ]);
+
+
+    function buildUrl(
+        path
+    ) {
+
+        if (!path) {
+            return null;
+        }
+
+
+        if (
+            path.startsWith(
+                "http://"
+            ) ||
+            path.startsWith(
+                "https://"
+            )
+        ) {
+
+            return path;
+        }
+
+
+        return `${API_URL}${path}`;
+    }
+
+
+    if (loading) {
+
+        return (
+
+            <div className="app">
+
+                <Header />
+
+                <main className="page">
+
+                    <div className="loading-state">
+
+                        <div className="spinner" />
+
+                        <p>
+                            Loading analysis...
+                        </p>
+
+                    </div>
+
+                </main>
+
+            </div>
+        );
+    }
+
+
+    if (error || !result) {
 
         return (
 
@@ -43,18 +188,40 @@ function Results() {
                 <main className="page">
 
                     <EmptyState
-                        title="No analysis found"
-                        description="Upload an image first to view analysis results."
+                        title={
+                            error
+                                ? "Analysis not found"
+                                : "No analysis found"
+                        }
+                        description={
+                            error ||
+                            "Upload an image first to view analysis results."
+                        }
                     />
 
-                    <button
-                        className="primary-button"
-                        onClick={() =>
-                            navigate("/")
-                        }
-                    >
-                        Analyze an Image
-                    </button>
+                    <div className="empty-actions">
+
+                        <button
+                            type="button"
+                            className="secondary-button"
+                            onClick={() =>
+                                navigate("/history")
+                            }
+                        >
+                            View History
+                        </button>
+
+                        <button
+                            type="button"
+                            className="primary-button"
+                            onClick={() =>
+                                navigate("/")
+                            }
+                        >
+                            Analyze an Image
+                        </button>
+
+                    </div>
 
                 </main>
 
@@ -63,35 +230,17 @@ function Results() {
     }
 
 
-    /*
-     * ------------------------------------------------
-     * IMAGE URL
-     * ------------------------------------------------
-     */
-
     const imageUrl =
-        result.image_url
-            ? `${API_URL}${result.image_url}`
-            : null;
+        buildUrl(
+            result.image_url
+        );
 
-
-    /*
-     * ------------------------------------------------
-     * GRAD-CAM URL
-     * ------------------------------------------------
-     */
 
     const gradcamUrl =
-        result.gradcam_url
-            ? `${API_URL}${result.gradcam_url}`
-            : null;
+        buildUrl(
+            result.gradcam_url
+        );
 
-
-    /*
-     * ------------------------------------------------
-     * PAGE
-     * ------------------------------------------------
-     */
 
     return (
 
@@ -102,10 +251,6 @@ function Results() {
 
             <main className="page results-page">
 
-
-                {/* =====================================
-                    HEADER
-                ===================================== */}
 
                 <div className="results-header">
 
@@ -126,45 +271,56 @@ function Results() {
                     </div>
 
 
-                    <button
-                        className="secondary-button"
-                        onClick={() =>
-                            navigate("/")
-                        }
-                    >
-                        Analyze Another
-                    </button>
+                    <div className="results-actions">
+
+                        <button
+                            type="button"
+                            className="secondary-button"
+                            onClick={() =>
+                                navigate("/history")
+                            }
+                        >
+                            ← History
+                        </button>
+
+
+                        <button
+                            type="button"
+                            className="primary-button"
+                            onClick={() =>
+                                navigate("/")
+                            }
+                        >
+                            Analyze Another
+                        </button>
+
+                    </div>
 
                 </div>
 
 
+                <section className="image-card">
 
-                {/* =====================================
-                    ORIGINAL IMAGE
-                ===================================== */}
+                    <div className="image-card-header">
 
-                {imageUrl && (
+                        <div>
 
-                    <section className="image-card">
+                            <span className="eyebrow">
+                                ANALYZED IMAGE
+                            </span>
 
-                        <div className="image-card-header">
-
-                            <div>
-
-                                <span className="eyebrow">
-                                    ANALYZED IMAGE
-                                </span>
-
-                                <h2>
-                                    Uploaded Image
-                                </h2>
-
-                            </div>
+                            <h2>
+                                Uploaded Image
+                            </h2>
 
                         </div>
 
+                    </div>
 
-                        <div className="original-image-container">
+
+                    <div className="original-image-container">
+
+                        {imageUrl ? (
 
                             <img
                                 src={imageUrl}
@@ -175,36 +331,44 @@ function Results() {
                                 className="original-image"
                             />
 
-                        </div>
+                        ) : (
 
-                    </section>
+                            <div className="image-not-available">
 
-                )}
+                                <span>
+                                    🖼️
+                                </span>
 
+                                <p>
+                                    Original image is
+                                    unavailable.
+                                </p>
 
+                            </div>
 
-                {/* =====================================
-                    QUALITY SCORE
-                ===================================== */}
+                        )}
+
+                    </div>
+
+                </section>
+
 
                 <QualityScore
-                    qmos={result.qmos}
+                    qmos={
+                        result.qmos
+                    }
+
                     qualityScore={
                         result.quality_score
                     }
+
                     qualityLabel={
                         result.quality_label
                     }
                 />
 
 
-
-                {/* =====================================
-                    ISSUES + RECOMMENDATION
-                ===================================== */}
-
                 <div className="results-grid">
-
 
                     <IssueList
                         defects={
@@ -230,14 +394,8 @@ function Results() {
 
                     </section>
 
-
                 </div>
 
-
-
-                {/* =====================================
-                    IMAGE STATISTICS
-                ===================================== */}
 
                 <Statistics
                     statistics={
@@ -245,11 +403,6 @@ function Results() {
                     }
                 />
 
-
-
-                {/* =====================================
-                    GRAD-CAM
-                ===================================== */}
 
                 <section className="gradcam-section">
 
@@ -279,7 +432,6 @@ function Results() {
                     />
 
                 </section>
-
 
             </main>
 

@@ -48,7 +48,7 @@ function Home() {
         if (result) {
 
             navigate(
-                "/results",
+                `/results/${result.prediction_id}`,
                 {
                     state: {
                         result,
