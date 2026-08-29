@@ -1,25 +1,63 @@
-function ImagePreview({ src, alt = "Uploaded image" }) {
-  if (!src) {
-    return null;
-  }
+function ImagePreview({
+    file,
+    onRemove,
+}) {
 
-  return (
-    <div className="image-preview-card">
+    if (!file) {
+        return null;
+    }
 
-      <div className="section-label">
-        INPUT IMAGE
-      </div>
+    const previewUrl =
+        URL.createObjectURL(file);
 
-      <div className="image-preview-container">
-        <img
-          src={src}
-          alt={alt}
-          className="image-preview"
-        />
-      </div>
 
-    </div>
-  );
+    return (
+
+        <div className="image-preview-card">
+
+            <div className="image-preview-header">
+
+                <div>
+
+                    <h3>
+                        Selected Image
+                    </h3>
+
+                    <p>
+                        {file.name}
+                    </p>
+
+                </div>
+
+
+                {onRemove && (
+
+                    <button
+                        className="secondary-button"
+                        onClick={onRemove}
+                    >
+                        Remove
+                    </button>
+
+                )}
+
+            </div>
+
+
+            <img
+                src={previewUrl}
+                alt="Selected"
+                className="preview-image"
+                onLoad={() =>
+                    URL.revokeObjectURL(
+                        previewUrl
+                    )
+                }
+            />
+
+        </div>
+    );
 }
+
 
 export default ImagePreview;

@@ -1,24 +1,37 @@
-from typing import Any
+from pathlib import Path
 from uuid import uuid4
 
-from ..database import (
+import cv2
+import numpy as np
+
+from ml.predict import QualityPredictor
+
+from app.config import settings
+
+from app.database import (
     predictions_collection,
 )
 
-from ..models.prediction import (
+from app.models.prediction import (
     create_prediction_document,
 )
 
-from .model_service import ModelService
+from app.services.explainability_service import (
+    generate_gradcam,
+)
 
 
+# ---------------------------------------------------------
+# Load model ONCE
+# ---------------------------------------------------------
 
-# MODEL SERVICE
-model_service = ModelService()
+predictor = QualityPredictor()
 
 
+# ---------------------------------------------------------
+# Quality labels
+# ---------------------------------------------------------
 
-# QUALITY LABEL
 def get_quality_label(
     qmos: float,
 ) -> str:
@@ -38,32 +51,37 @@ def get_quality_label(
     return "Very Poor"
 
 
-# RECOMMENDATION
+# ---------------------------------------------------------
+# Recommendation
+# ---------------------------------------------------------
+
 def get_recommendation(
     qmos: float,
-    defects: dict[str, float],
+    defects: dict,
 ) -> str:
 
-    if not defects:
+    if defects:
 
-        return (
-            "Image quality has been evaluated."
+        highest_defect = max(
+            defects,
+            key=defects.get,
         )
 
-    highest_defect = max(
-        defects,
-        key=defects.get,
-    )
+        highest_score = defects[
+            highest_defect
+        ]
 
-    highest_score = defects[
-        highest_defect
-    ]
+    else:
+
+        highest_defect = "quality issue"
+        highest_score = 0.0
+
 
     if qmos >= 4.0:
 
         return (
             "Image quality is excellent "
-            "with minimal detected quality issues."
+            "with minimal detected defects."
         )
 
     if qmos >= 3.5:
@@ -76,76 +94,156 @@ def get_recommendation(
     if qmos >= 2.5:
 
         return (
-            "Image quality is moderate. "
-            f"The highest detected issue score "
-            f"is associated with {highest_defect}."
+            f"Image quality is moderate. "
+            f"The main detected issue is "
+            f"{highest_defect}."
         )
 
     return (
-        "Image quality is low. "
-        f"The highest detected issue score "
-        f"is associated with {highest_defect} "
+        f"Image quality is low. "
+        f"The most prominent detected issue "
+        f"is {highest_defect} "
         f"({highest_score:.2f})."
     )
 
 
-
-# PREDICTION
+# ---------------------------------------------------------
+# Main prediction
+# ---------------------------------------------------------
 
 def predict_image(
     image_bytes: bytes,
     filename: str,
-) -> dict[str, Any]:
+):
 
+    # -----------------------------------------------------
+    # 1. Run ML prediction
+    # -----------------------------------------------------
 
-    # Run trained Hybrid CNN + CV model
-    prediction = model_service.predict(
+    prediction = predictor.predict(
         image_bytes
     )
 
-    qmos = float(
-        prediction["qmos"]
+    qmos = prediction["qmos"]
+
+    defects = prediction["defects"]
+
+
+    # -----------------------------------------------------
+    # 2. Quality information
+    # -----------------------------------------------------
+
+    quality_label = get_quality_label(
+        qmos
     )
 
-    quality_score = float(
-        prediction["quality_score"]
-    )
-
-    defects = {
-        name: float(value)
-        for name, value in prediction[
-            "defects"
-        ].items()
-    }
-
-    statistics = {
-        name: float(value)
-        for name, value in prediction[
-            "statistics"
-        ].items()
-    }
-
-
-    # Business-level interpretation
-    quality_label = (
-        get_quality_label(qmos)
-    )
-
-    recommendation = (
-        get_recommendation(
-            qmos,
-            defects,
-        )
+    recommendation = get_recommendation(
+        qmos,
+        defects,
     )
 
 
-    # Generate prediction ID
+    # -----------------------------------------------------
+    # 3. Generate prediction ID
+    # -----------------------------------------------------
+
     prediction_id = str(
         uuid4()
     )
 
 
-    # API result
+    # -----------------------------------------------------
+    # 4. Save original image
+    # -----------------------------------------------------
+
+    upload_dir = Path(
+        settings.UPLOAD_DIR
+    )
+
+    upload_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    safe_filename = (
+        f"{prediction_id}.jpg"
+    )
+
+    image_path = (
+        upload_dir
+        / safe_filename
+    )
+
+
+    # Decode image
+
+    array = np.frombuffer(
+        image_bytes,
+        dtype=np.uint8,
+    )
+
+    image = cv2.imdecode(
+        array,
+        cv2.IMREAD_COLOR,
+    )
+
+    if image is None:
+
+        raise ValueError(
+            "Could not decode uploaded image."
+        )
+
+
+    # Save original image
+
+    cv2.imwrite(
+        str(image_path),
+        image,
+    )
+
+
+    # -----------------------------------------------------
+    # 5. Generate Grad-CAM
+    # -----------------------------------------------------
+
+    gradcam_url = None
+
+    try:
+
+        gradcam_filename = (
+            predictor.generate_gradcam(
+                image_bytes
+            )
+        )
+
+        if gradcam_filename:
+
+            gradcam_url = (
+                f"/uploads/gradcam/"
+                f"{gradcam_filename}"
+            )
+
+    except Exception as error:
+
+        print(
+            "WARNING: Grad-CAM generation failed:"
+        )
+
+        print(error)
+
+
+    # -----------------------------------------------------
+    # 6. Image URL
+    # -----------------------------------------------------
+
+    image_url = (
+        f"/uploads/{safe_filename}"
+    )
+
+
+    # -----------------------------------------------------
+    # 7. Final result
+    # -----------------------------------------------------
 
     result = {
 
@@ -155,17 +253,16 @@ def predict_image(
         "filename":
             filename,
 
+        "image_url":
+            image_url,
+
         "quality_score":
-            round(
-                quality_score,
-                2,
-            ),
+            prediction[
+                "quality_score"
+            ],
 
         "qmos":
-            round(
-                qmos,
-                4,
-            ),
+            qmos,
 
         "quality_label":
             quality_label,
@@ -174,13 +271,21 @@ def predict_image(
             defects,
 
         "statistics":
-            statistics,
+            prediction[
+                "statistics"
+            ],
 
         "recommendation":
             recommendation,
+
+        "gradcam_url":
+            gradcam_url,
     }
 
-    # Save prediction to MongoDB
+
+    # -----------------------------------------------------
+    # 8. Save to MongoDB
+    # -----------------------------------------------------
 
     document = (
         create_prediction_document(
@@ -195,15 +300,5 @@ def predict_image(
         document
     )
 
+
     return result
-
-
-
-# MODEL INFORMATION
-
-
-def get_model_information():
-
-    return (
-        model_service.get_model_info()
-    )

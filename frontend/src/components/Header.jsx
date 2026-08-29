@@ -1,56 +1,71 @@
-function Header({ currentPage, onNavigate }) {
-  return (
-    <header className="app-header">
-      <div className="header-inner">
+import {
+    Link,
+    NavLink,
+} from "react-router-dom";
 
-        <button
-          className="brand"
-          onClick={() => onNavigate("home")}
-        >
-          <div className="brand-icon">
-            IQ
-          </div>
 
-          <div>
-            <div className="brand-name">
-              Viora AI
+function Header() {
+
+    return (
+
+        <header className="header">
+
+            <div className="header-inner">
+
+                <Link
+                    to="/"
+                    className="brand"
+                >
+
+                    <div className="brand-icon">
+                        V
+                    </div>
+
+                    <div>
+                        <div className="brand-title">
+                            VIORA AI
+                        </div>
+
+                        <div className="brand-subtitle">
+                            Image Quality Intelligence
+                        </div>
+                    </div>
+
+                </Link>
+
+
+                <nav className="navigation">
+
+                    <NavLink
+                        to="/"
+                        className={({ isActive }) =>
+                            isActive
+                                ? "nav-link active"
+                                : "nav-link"
+                        }
+                    >
+                        Analyze
+                    </NavLink>
+
+
+                    <NavLink
+                        to="/history"
+                        className={({ isActive }) =>
+                            isActive
+                                ? "nav-link active"
+                                : "nav-link"
+                        }
+                    >
+                        History
+                    </NavLink>
+
+                </nav>
+
             </div>
 
-            <div className="brand-subtitle">
-              Image Quality Intelligence
-            </div>
-          </div>
-        </button>
-
-        <nav className="navigation">
-
-          <button
-            className={
-              currentPage === "home"
-                ? "nav-button active"
-                : "nav-button"
-            }
-            onClick={() => onNavigate("home")}
-          >
-            Analyze
-          </button>
-
-          <button
-            className={
-              currentPage === "history"
-                ? "nav-button active"
-                : "nav-button"
-            }
-            onClick={() => onNavigate("history")}
-          >
-            History
-          </button>
-
-        </nav>
-
-      </div>
-    </header>
-  );
+        </header>
+    );
 }
+
 
 export default Header;

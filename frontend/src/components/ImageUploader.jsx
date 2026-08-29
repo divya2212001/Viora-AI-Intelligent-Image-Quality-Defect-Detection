@@ -1,200 +1,135 @@
-import { useRef, useState } from "react";
+import {
+    useRef,
+    useState,
+} from "react";
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-
-const ALLOWED_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/bmp",
-];
 
 function ImageUploader({
-  onFileSelected,
-  onAnalyze,
-  loading,
+    onFileSelected,
+    disabled = false,
 }) {
-  const inputRef = useRef(null);
 
-  const [file, setFile] = useState(null);
-  const [error, setError] = useState("");
-  const [dragActive, setDragActive] = useState(false);
+    const inputRef =
+        useRef(null);
 
-  function validateFile(selectedFile) {
-    if (!selectedFile) {
-      return "Please select an image.";
-    }
+    const [
+        dragging,
+        setDragging,
+    ] = useState(false);
 
-    if (!ALLOWED_TYPES.includes(selectedFile.type)) {
-      return "Unsupported file type. Use JPG, PNG, WEBP, or BMP.";
-    }
 
-    if (selectedFile.size > MAX_FILE_SIZE) {
-      return "Image size must be less than 10 MB.";
-    }
+    function selectFile(file) {
 
-    return null;
-  }
-
-  function processFile(selectedFile) {
-    const validationError = validateFile(selectedFile);
-
-    if (validationError) {
-      setError(validationError);
-      setFile(null);
-      return;
-    }
-
-    setError("");
-    setFile(selectedFile);
-    onFileSelected?.(selectedFile);
-  }
-
-  function handleInputChange(event) {
-    const selectedFile = event.target.files?.[0];
-
-    processFile(selectedFile);
-  }
-
-  function handleDrop(event) {
-    event.preventDefault();
-
-    setDragActive(false);
-
-    const droppedFile = event.dataTransfer.files?.[0];
-
-    processFile(droppedFile);
-  }
-
-  function handleDragOver(event) {
-    event.preventDefault();
-    setDragActive(true);
-  }
-
-  function handleDragLeave(event) {
-    event.preventDefault();
-    setDragActive(false);
-  }
-
-  function openFilePicker() {
-    inputRef.current?.click();
-  }
-
-  function clearFile() {
-    setFile(null);
-    setError("");
-
-    if (inputRef.current) {
-      inputRef.current.value = "";
-    }
-
-    onFileSelected?.(null);
-  }
-
-  return (
-    <div className="upload-section">
-
-      <div
-        className={
-          dragActive
-            ? "drop-zone drag-active"
-            : "drop-zone"
+        if (!file) {
+            return;
         }
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-      >
 
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/bmp"
-          onChange={handleInputChange}
-          hidden
-        />
+        if (!file.type.startsWith("image/")) {
 
-        <div className="upload-icon">
-          ↑
-        </div>
+            alert(
+                "Please select a valid image file."
+            );
 
-        <h3>
-          Upload an image
-        </h3>
+            return;
+        }
 
-        <p>
-          Drag and drop your image here
-        </p>
+        onFileSelected(file);
+    }
 
-        <span className="upload-or">
-          or
-        </span>
 
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={openFilePicker}
-          disabled={loading}
+    function handleInput(event) {
+
+        const file =
+            event.target.files?.[0];
+
+        selectFile(file);
+    }
+
+
+    function handleDrop(event) {
+
+        event.preventDefault();
+
+        setDragging(false);
+
+        if (disabled) {
+            return;
+        }
+
+        const file =
+            event.dataTransfer.files?.[0];
+
+        selectFile(file);
+    }
+
+
+    return (
+
+        <div
+            className={
+                dragging
+                    ? "upload-box dragging"
+                    : "upload-box"
+            }
+
+            onDragOver={(event) => {
+
+                event.preventDefault();
+
+                if (!disabled) {
+                    setDragging(true);
+                }
+
+            }}
+
+            onDragLeave={() =>
+                setDragging(false)
+            }
+
+            onDrop={handleDrop}
+
+            onClick={() => {
+
+                if (!disabled) {
+                    inputRef.current?.click();
+                }
+
+            }}
         >
-          Choose Image
-        </button>
 
-        <div className="upload-hint">
-          JPG, PNG, WEBP or BMP · Maximum 10 MB
-        </div>
+            <input
+                ref={inputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleInput}
+                disabled={disabled}
+                hidden
+            />
 
-      </div>
 
-      {error && (
-        <div className="error-message">
-          <span>!</span>
-          {error}
-        </div>
-      )}
+            <div className="upload-icon">
+                ↑
+            </div>
 
-      {file && !error && (
-        <div className="selected-file">
 
-          <div>
-            <strong>
-              {file.name}
-            </strong>
+            <h3>
+                Upload an image
+            </h3>
 
-            <span>
-              {(file.size / 1024 / 1024).toFixed(2)} MB
+
+            <p>
+                Drag & drop your image here
+                or click to browse
+            </p>
+
+
+            <span className="upload-format">
+                JPG · PNG · WEBP
             </span>
-          </div>
-
-          <button
-            className="remove-button"
-            onClick={clearFile}
-            disabled={loading}
-          >
-            Remove
-          </button>
 
         </div>
-      )}
-
-      <button
-        className="primary-button analyze-button"
-        disabled={!file || loading}
-        onClick={() => onAnalyze(file)}
-      >
-        {loading ? (
-          <>
-            <span className="button-spinner" />
-            Analyzing image...
-          </>
-        ) : (
-          <>
-            Analyze Image
-            <span>→</span>
-          </>
-        )}
-      </button>
-
-    </div>
-  );
+    );
 }
+
 
 export default ImageUploader;

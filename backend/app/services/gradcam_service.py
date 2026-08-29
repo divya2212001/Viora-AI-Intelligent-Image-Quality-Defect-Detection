@@ -13,38 +13,17 @@ def generate_gradcam(
     output_dir,
 ):
     """
-    Generate a Grad-CAM heatmap for the quality prediction
-    of the Hybrid CNN + CV model.
+    Generate Grad-CAM visualization for the
+    Hybrid CNN + CV model.
 
-    Parameters
-    ----------
-    model:
-        Trained ImageQualityNet model.
-
-    image_tensor:
-        Preprocessed image tensor of shape [1, 3, H, W].
-
-    feature_tensor:
-        Normalized OpenCV feature tensor of shape [1, num_features].
-
-    original_image:
-        Original OpenCV BGR image.
-
-    output_dir:
-        Directory where the Grad-CAM image will be saved.
-
-    Returns
-    -------
-    str:
-        Filename of the generated Grad-CAM image.
+    The explanation is generated from the
+    actual image + CV feature inputs.
     """
 
     model.eval()
 
 
-    # 1. Target ResNet18 convolutional layer
-
-
+    # FIND LAST RESNET CONVOLUTIONAL LAYER
     target_layer = (
         model.backbone.layer4[-1].conv2
     )
@@ -53,9 +32,7 @@ def generate_gradcam(
     gradients = []
 
 
-    # 2. Hooks
-
-
+    # FORWARD HOOK
     def forward_hook(
         module,
         input,
@@ -65,6 +42,8 @@ def generate_gradcam(
             output
         )
 
+
+    # BACKWARD HOOK
     def backward_hook(
         module,
         grad_input,
@@ -89,35 +68,31 @@ def generate_gradcam(
     try:
 
 
-        # 3. Forward pass
+        # ENABLE GRADIENTS
         model.zero_grad()
 
+        image_tensor = (
+            image_tensor.clone()
+            .detach()
+            .requires_grad_(True)
+        )
+
+
+        # IMPORTANT:
+        # USE ACTUAL CV FEATURES
         quality, _ = model(
             image_tensor,
             feature_tensor,
         )
 
-        # Explain the predicted quality score
+
+        # BACKPROPAGATE QUALITY SCORE
         quality_score = quality[0]
 
-
-        # 4. Backward pass
         quality_score.backward()
 
-        if not activations:
 
-            raise RuntimeError(
-                "Grad-CAM activations were not captured."
-            )
-
-        if not gradients:
-
-            raise RuntimeError(
-                "Grad-CAM gradients were not captured."
-            )
-
-
-        # 5. Convert tensors to NumPy
+        # GET ACTIVATIONS + GRADIENTS
         activation = (
             activations[0]
             .detach()
@@ -133,14 +108,14 @@ def generate_gradcam(
         )
 
 
-        # 6. Global average pooling
+        # GLOBAL AVERAGE POOLING
         weights = np.mean(
             gradient,
             axis=(1, 2),
         )
 
 
-        # 7. Weighted feature maps
+        # CREATE CAM
         cam = np.zeros(
             activation.shape[1:],
             dtype=np.float32,
@@ -156,23 +131,22 @@ def generate_gradcam(
             )
 
 
-        # 8. ReLU
+        # RELU
         cam = np.maximum(
             cam,
             0,
         )
 
 
-        # 9. Normalize
+        # NORMALIZE
         if cam.max() > 0:
 
             cam = (
-                cam
-                / cam.max()
+                cam / cam.max()
             )
 
 
-        # 10. Resize heatmap to original image
+        # RESIZE HEATMAP
         height, width = (
             original_image.shape[:2]
         )
@@ -187,20 +161,17 @@ def generate_gradcam(
         )
 
 
-        # 11. Convert to 0-255
+        # CONVERT TO HEATMAP
         heatmap = np.uint8(
-            cam * 255
+            255 * cam
         )
 
-
-        # 12. Apply OpenCV heatmap
         heatmap = cv2.applyColorMap(
             heatmap,
             cv2.COLORMAP_JET,
         )
 
-
-        # 13. Overlay heatmap on original image
+        # OVERLAY
         overlay = cv2.addWeighted(
             original_image,
             0.55,
@@ -210,7 +181,7 @@ def generate_gradcam(
         )
 
 
-        # 14. Save
+        # SAVE
         output_dir = Path(
             output_dir
         )
@@ -236,16 +207,10 @@ def generate_gradcam(
             / filename
         )
 
-        success = cv2.imwrite(
+        cv2.imwrite(
             str(output_path),
             overlay,
         )
-
-        if not success:
-
-            raise RuntimeError(
-                "Failed to save Grad-CAM image."
-            )
 
         return filename
 

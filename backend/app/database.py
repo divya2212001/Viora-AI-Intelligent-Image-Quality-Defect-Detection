@@ -14,23 +14,12 @@ database: Database = client[
     settings.DATABASE_NAME
 ]
 
-
-
-# COLLECTIONS
-analyses_collection: Collection = (
-    database["analyses"]
-)
-
 predictions_collection: Collection = (
     database["predictions"]
 )
 
 
-# DATABASE HEALTH
 def check_database_connection() -> bool:
-    """
-    Check whether MongoDB is reachable.
-    """
 
     try:
 
@@ -38,14 +27,15 @@ def check_database_connection() -> bool:
 
         return True
 
-    except Exception:
+    except Exception as exc:
+
+        print(
+            f"MongoDB connection error: {exc}"
+        )
 
         return False
 
-# SHUTDOWN
+
 def close_database_connection() -> None:
-    """
-    Close MongoDB connection.
-    """
 
     client.close()

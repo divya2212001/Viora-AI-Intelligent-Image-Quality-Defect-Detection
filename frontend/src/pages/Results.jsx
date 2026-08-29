@@ -1,118 +1,291 @@
+import {
+    useLocation,
+    useNavigate,
+} from "react-router-dom";
+
+import Header from "../components/Header";
 import QualityScore from "../components/QualityScore";
 import IssueList from "../components/IssueList";
 import Statistics from "../components/Statistics";
-import ModelInfo from "../components/ModelInfo";
 import HeatmapViewer from "../components/HeatmapViewer";
+import EmptyState from "../components/EmptyState";
 
-function Results({
-  result,
-  imageUrl,
-  onNewAnalysis,
-}) {
-  if (!result) {
-    return (
-      <main className="page-container">
-        <div className="empty-state">
-          <h2>
-            No analysis available
-          </h2>
+import { API_URL } from "../services/api";
 
-          <p>
-            Upload an image to start an analysis.
-          </p>
 
-          <button
-            className="primary-button"
-            onClick={onNewAnalysis}
-          >
-            Analyze an image
-          </button>
-        </div>
-      </main>
-    );
-  }
+function Results() {
 
-  return (
-    <main className="page-container results-page">
+    const location =
+        useLocation();
 
-      <div className="results-heading">
+    const navigate =
+        useNavigate();
 
-        <div>
-          <div className="section-label">
-            ANALYSIS RESULT
-          </div>
 
-          <h1>
-            Image quality report
-          </h1>
+    const result =
+        location.state?.result;
 
-          <p>
-            AI and computer-vision analysis of your
-            uploaded image.
-          </p>
-        </div>
 
-        <button
-          className="secondary-button"
-          onClick={onNewAnalysis}
-        >
-          ← Analyze another
-        </button>
+    /*
+     * ------------------------------------------------
+     * NO RESULT
+     * ------------------------------------------------
+     */
 
-      </div>
+    if (!result) {
 
-      <div className="results-grid">
+        return (
 
-        <div className="results-image-column">
+            <div className="app">
 
-          {imageUrl && (
-            <div className="result-image-card">
+                <Header />
 
-              <div className="section-label">
-                ANALYZED IMAGE
-              </div>
+                <main className="page">
 
-              <img
-                src={imageUrl}
-                alt="Analyzed image"
-                className="result-image"
-              />
+                    <EmptyState
+                        title="No analysis found"
+                        description="Upload an image first to view analysis results."
+                    />
+
+                    <button
+                        className="primary-button"
+                        onClick={() =>
+                            navigate("/")
+                        }
+                    >
+                        Analyze an Image
+                    </button>
+
+                </main>
 
             </div>
-          )}
+        );
+    }
 
-          <ModelInfo model={result.model} />
+
+    /*
+     * ------------------------------------------------
+     * IMAGE URL
+     * ------------------------------------------------
+     */
+
+    const imageUrl =
+        result.image_url
+            ? `${API_URL}${result.image_url}`
+            : null;
+
+
+    /*
+     * ------------------------------------------------
+     * GRAD-CAM URL
+     * ------------------------------------------------
+     */
+
+    const gradcamUrl =
+        result.gradcam_url
+            ? `${API_URL}${result.gradcam_url}`
+            : null;
+
+
+    /*
+     * ------------------------------------------------
+     * PAGE
+     * ------------------------------------------------
+     */
+
+    return (
+
+        <div className="app">
+
+            <Header />
+
+
+            <main className="page results-page">
+
+
+                {/* =====================================
+                    HEADER
+                ===================================== */}
+
+                <div className="results-header">
+
+                    <div>
+
+                        <span className="eyebrow">
+                            ANALYSIS COMPLETE
+                        </span>
+
+                        <h1>
+                            Analysis Results
+                        </h1>
+
+                        <p>
+                            {result.filename}
+                        </p>
+
+                    </div>
+
+
+                    <button
+                        className="secondary-button"
+                        onClick={() =>
+                            navigate("/")
+                        }
+                    >
+                        Analyze Another
+                    </button>
+
+                </div>
+
+
+
+                {/* =====================================
+                    ORIGINAL IMAGE
+                ===================================== */}
+
+                {imageUrl && (
+
+                    <section className="image-card">
+
+                        <div className="image-card-header">
+
+                            <div>
+
+                                <span className="eyebrow">
+                                    ANALYZED IMAGE
+                                </span>
+
+                                <h2>
+                                    Uploaded Image
+                                </h2>
+
+                            </div>
+
+                        </div>
+
+
+                        <div className="original-image-container">
+
+                            <img
+                                src={imageUrl}
+                                alt={
+                                    result.filename ||
+                                    "Analyzed image"
+                                }
+                                className="original-image"
+                            />
+
+                        </div>
+
+                    </section>
+
+                )}
+
+
+
+                {/* =====================================
+                    QUALITY SCORE
+                ===================================== */}
+
+                <QualityScore
+                    qmos={result.qmos}
+                    qualityScore={
+                        result.quality_score
+                    }
+                    qualityLabel={
+                        result.quality_label
+                    }
+                />
+
+
+
+                {/* =====================================
+                    ISSUES + RECOMMENDATION
+                ===================================== */}
+
+                <div className="results-grid">
+
+
+                    <IssueList
+                        defects={
+                            result.defects || {}
+                        }
+                    />
+
+
+                    <section className="recommendation-card">
+
+                        <span className="eyebrow">
+                            RECOMMENDATION
+                        </span>
+
+                        <h2>
+                            What the model says
+                        </h2>
+
+                        <p>
+                            {result.recommendation ||
+                                "No recommendation available."}
+                        </p>
+
+                    </section>
+
+
+                </div>
+
+
+
+                {/* =====================================
+                    IMAGE STATISTICS
+                ===================================== */}
+
+                <Statistics
+                    statistics={
+                        result.statistics || {}
+                    }
+                />
+
+
+
+                {/* =====================================
+                    GRAD-CAM
+                ===================================== */}
+
+                <section className="gradcam-section">
+
+                    <div className="section-header">
+
+                        <span className="eyebrow">
+                            EXPLAINABILITY · BONUS
+                        </span>
+
+                        <h2>
+                            Grad-CAM Explainability
+                        </h2>
+
+                        <p>
+                            Visual explanation of the
+                            image regions that influenced
+                            the model's quality prediction.
+                        </p>
+
+                    </div>
+
+
+                    <HeatmapViewer
+                        heatmapUrl={
+                            gradcamUrl
+                        }
+                    />
+
+                </section>
+
+
+            </main>
 
         </div>
-
-        <div className="results-content">
-
-          <QualityScore
-            score={result.quality_score}
-            label={result.quality_label}
-          />
-
-          <IssueList
-            issues={result.issues || []}
-          />
-
-          <Statistics
-            statistics={result.statistics || {}}
-          />
-
-          <HeatmapViewer
-            heatmap={
-              result.explainability?.heatmap ||
-              result.heatmap
-            }
-          />
-
-        </div>
-
-      </div>
-
-    </main>
-  );
+    );
 }
+
 
 export default Results;

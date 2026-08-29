@@ -1,20 +1,23 @@
 function LoadingState() {
-  return (
-    <div className="loading-card">
 
-      <div className="large-spinner" />
+    return (
 
-      <h2>
-        Analyzing image
-      </h2>
+        <div className="loading-state">
 
-      <p>
-        Running computer vision and AI quality
-        assessment...
-      </p>
+            <div className="spinner" />
 
-    </div>
-  );
+            <h3>
+                Analyzing image...
+            </h3>
+
+            <p>
+                Hybrid CNN + Computer Vision
+                model is processing your image.
+            </p>
+
+        </div>
+    );
 }
+
 
 export default LoadingState;

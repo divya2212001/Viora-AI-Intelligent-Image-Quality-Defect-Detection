@@ -1,91 +1,149 @@
-export function formatDate(dateString) {
-  if (!dateString) return "Unknown";
+export function getQualityClass(
+    qmos
+) {
 
-  const date = new Date(dateString);
+    const score =
+        Number(qmos);
 
-  if (Number.isNaN(date.getTime())) {
-    return "Unknown";
-  }
+    if (score >= 4.0) {
+        return "excellent";
+    }
 
-  return date.toLocaleString();
+    if (score >= 3.5) {
+        return "good";
+    }
+
+    if (score >= 2.5) {
+        return "fair";
+    }
+
+    if (score >= 1.5) {
+        return "poor";
+    }
+
+    return "very-poor";
 }
 
-export function formatConfidence(value) {
-  if (value === null || value === undefined) {
-    return "N/A";
-  }
 
-  const number = Number(value);
+export function getScoreDescription(
+    qmos
+) {
 
-  if (Number.isNaN(number)) {
-    return "N/A";
-  }
+    const score =
+        Number(qmos);
 
-  return `${(number * 100).toFixed(1)}%`;
+    if (score >= 4.0) {
+        return "Excellent image quality with minimal detected issues.";
+    }
+
+    if (score >= 3.5) {
+        return "Good image quality with only minor issues.";
+    }
+
+    if (score >= 2.5) {
+        return "Moderate image quality. Some issues may be present.";
+    }
+
+    if (score >= 1.5) {
+        return "Poor image quality. Several issues may affect the image.";
+    }
+
+    return "Very poor image quality. Significant issues were detected.";
 }
 
-export function getSeverityClass(severity) {
-  if (!severity) return "severity-unknown";
 
-  switch (severity.toLowerCase()) {
-    case "low":
-      return "severity-low";
+export function formatPercentage(
+    value
+) {
 
-    case "medium":
-      return "severity-medium";
+    const number =
+        Number(value);
 
-    case "high":
-      return "severity-high";
+    if (Number.isNaN(number)) {
+        return "0%";
+    }
 
-    case "critical":
-      return "severity-critical";
-
-    default:
-      return "severity-unknown";
-  }
+    return `${(number * 100).toFixed(1)}%`;
 }
 
-export function getQualityClass(label) {
-  if (!label) return "quality-default";
 
-  switch (label.toUpperCase()) {
-    case "EXCELLENT":
-      return "quality-excellent";
+export function formatScore(
+    value,
+    decimals = 2
+) {
 
-    case "ACCEPTABLE":
-      return "quality-acceptable";
+    const number =
+        Number(value);
 
-    case "DEGRADED":
-      return "quality-degraded";
+    if (Number.isNaN(number)) {
+        return "0";
+    }
 
-    case "DEFECTIVE":
-      return "quality-defective";
-
-    default:
-      return "quality-default";
-  }
+    return number.toFixed(
+        decimals
+    );
 }
 
-export function formatIssueName(type) {
-  if (!type) return "Unknown issue";
 
-  return type
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+export function formatDate(
+    value
+) {
+
+    if (!value) {
+        return "Unknown";
+    }
+
+    const date =
+        new Date(value);
+
+    if (Number.isNaN(
+        date.getTime()
+    )) {
+        return String(value);
+    }
+
+    return date.toLocaleString();
 }
 
-export function getScoreDescription(score) {
-  if (score >= 90) {
-    return "Excellent visual quality";
-  }
 
-  if (score >= 75) {
-    return "Good quality with minor concerns";
-  }
+export function getHighestDefect(
+    defects = {}
+) {
 
-  if (score >= 50) {
-    return "Image quality needs attention";
-  }
+    const entries =
+        Object.entries(defects);
 
-  return "Significant quality problems detected";
+    if (entries.length === 0) {
+        return null;
+    }
+
+    return entries.reduce(
+        (highest, current) => {
+
+            return current[1] >
+                highest[1]
+                ? current
+                : highest;
+
+        }
+    );
+}
+
+
+export function prettifyName(
+    name
+) {
+
+    if (!name) {
+        return "";
+    }
+
+    return String(name)
+        .replace(/_/g, " ")
+        .replace(/-/g, " ")
+        .replace(
+            /\b\w/g,
+            letter =>
+                letter.toUpperCase()
+        );
 }

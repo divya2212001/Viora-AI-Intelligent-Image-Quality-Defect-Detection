@@ -1,131 +1,157 @@
-import { useState } from "react";
+import {
+    useState,
+} from "react";
+
+import {
+    useNavigate,
+} from "react-router-dom";
+
+import Header from "../components/Header";
 import ImageUploader from "../components/ImageUploader";
 import ImagePreview from "../components/ImagePreview";
+import LoadingState from "../components/LoadingState";
+import ModelInfo from "../components/ModelInfo";
 
-function Home({
-  onAnalyze,
-  loading,
-  error,
-}) {
-  const [selectedFile, setSelectedFile] = useState(null);
+import {
+    useAnalysis,
+} from "../hooks/useAnalysis";
 
-  const previewUrl = selectedFile
-    ? URL.createObjectURL(selectedFile)
-    : null;
 
-  return (
-    <main className="page-container">
+function Home() {
 
-      <section className="hero">
+    const [
+        file,
+        setFile,
+    ] = useState(null);
 
-        <div className="hero-badge">
-          AI-POWERED COMPUTER VISION
+
+    const {
+        loading,
+        error,
+        analyze,
+    } = useAnalysis();
+
+
+    const navigate =
+        useNavigate();
+
+
+    async function handleAnalyze() {
+
+        if (!file) {
+            return;
+        }
+
+        const result =
+            await analyze(file);
+
+        if (result) {
+
+            navigate(
+                "/results",
+                {
+                    state: {
+                        result,
+                    },
+                }
+            );
+        }
+    }
+
+
+    return (
+
+        <div className="app">
+
+            <Header />
+
+
+            <main className="page">
+
+                <section className="hero">
+
+                    <span className="eyebrow">
+                        AI IMAGE QUALITY ANALYSIS
+                    </span>
+
+                    <h1>
+                        Understand the quality
+                        of your image.
+                    </h1>
+
+                    <p>
+                        Upload an image and our
+                        Hybrid CNN + Computer Vision
+                        system will estimate perceptual
+                        quality and identify visual defects.
+                    </p>
+
+                </section>
+
+
+                <section className="analysis-card">
+
+                    {!file ? (
+
+                        <ImageUploader
+                            onFileSelected={
+                                setFile
+                            }
+                            disabled={loading}
+                        />
+
+                    ) : (
+
+                        <ImagePreview
+                            file={file}
+                            onRemove={() =>
+                                setFile(null)
+                            }
+                        />
+
+                    )}
+
+
+                    {error && (
+
+                        <div className="error-box">
+                            {error}
+                        </div>
+
+                    )}
+
+
+                    {loading ? (
+
+                        <LoadingState />
+
+                    ) : (
+
+                        file && (
+
+                            <button
+                                className="primary-button analyze-button"
+                                onClick={
+                                    handleAnalyze
+                                }
+                            >
+                                Analyze Image
+                            </button>
+
+                        )
+
+                    )}
+
+                </section>
+
+
+                <ModelInfo />
+
+            </main>
+
         </div>
-
-        <h1>
-          Understand your image
-          <br />
-          <span>before you use it.</span>
-        </h1>
-
-        <p>
-          Analyze sharpness, exposure, noise, contrast,
-          degradation and potential visual defects using
-          computer vision and machine learning.
-        </p>
-
-      </section>
-
-      <section className="workspace">
-
-        <div className="upload-panel">
-
-          <div className="panel-header">
-            <div>
-              <div className="section-label">
-                IMAGE ANALYSIS
-              </div>
-
-              <h2>
-                Upload an image
-              </h2>
-            </div>
-          </div>
-
-          <ImageUploader
-            onFileSelected={setSelectedFile}
-            onAnalyze={onAnalyze}
-            loading={loading}
-          />
-
-          {error && (
-            <div className="error-message large">
-              <span>!</span>
-              {error}
-            </div>
-          )}
-
-        </div>
-
-        <div className="preview-panel">
-
-          {previewUrl ? (
-            <ImagePreview
-              src={previewUrl}
-              alt="Selected image"
-            />
-          ) : (
-            <div className="preview-placeholder">
-
-              <div className="placeholder-icon">
-                ◌
-              </div>
-
-              <h3>
-                Image preview
-              </h3>
-
-              <p>
-                Your selected image will appear here.
-              </p>
-
-            </div>
-          )}
-
-        </div>
-
-      </section>
-
-      <section className="capabilities">
-
-        <div className="capability">
-          <span>01</span>
-          <strong>Sharpness</strong>
-          <p>Blur and insufficient focus detection.</p>
-        </div>
-
-        <div className="capability">
-          <span>02</span>
-          <strong>Exposure</strong>
-          <p>Underexposure and overexposure analysis.</p>
-        </div>
-
-        <div className="capability">
-          <span>03</span>
-          <strong>Noise</strong>
-          <p>Detection of unwanted image noise.</p>
-        </div>
-
-        <div className="capability">
-          <span>04</span>
-          <strong>Defects</strong>
-          <p>Potential degradation and visual defects.</p>
-        </div>
-
-      </section>
-
-    </main>
-  );
+    );
 }
+
 
 export default Home;

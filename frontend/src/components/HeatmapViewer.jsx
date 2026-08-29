@@ -1,43 +1,48 @@
-function HeatmapViewer({ heatmap }) {
-  if (!heatmap) {
-    return null;
-  }
+function HeatmapViewer({
+    heatmapUrl,
+}) {
 
-  let source = heatmap;
+    if (!heatmapUrl) {
 
-  if (
-    typeof heatmap === "string" &&
-    heatmap.startsWith("data:")
-  ) {
-    source = heatmap;
-  }
+        return (
+            <div className="heatmap-empty">
 
-  return (
-    <div className="card">
+                <div className="heatmap-icon">
+                    ◎
+                </div>
 
-      <div className="section-label">
-        EXPLAINABILITY
-      </div>
+                <h3>
+                    Grad-CAM unavailable
+                </h3>
 
-      <h2>
-        Problem localization
-      </h2>
+                <p>
+                    No explanation image was
+                    generated for this analysis.
+                </p>
 
-      <p className="card-description">
-        Regions highlighted by the model that
-        contributed to the quality assessment.
-      </p>
+            </div>
+        );
+    }
 
-      <div className="heatmap-container">
-        <img
-          src={source}
-          alt="Quality analysis heatmap"
-          className="heatmap-image"
-        />
-      </div>
 
-    </div>
-  );
+    return (
+        <div className="heatmap-viewer">
+
+            <img
+                src={heatmapUrl}
+                alt="Grad-CAM explanation"
+                className="heatmap-image"
+            />
+
+            <p className="heatmap-description">
+                Highlighted regions show the
+                image areas that contributed
+                to the predicted quality score.
+            </p>
+
+        </div>
+    );
 }
+
 
 export default HeatmapViewer;

@@ -1,24 +1,28 @@
 function EmptyState({
-  title = "No analyses yet",
-  description = "Upload an image to start your first analysis.",
+    title = "No results yet",
+    description =
+        "Upload an image to begin analysis.",
 }) {
-  return (
-    <div className="empty-state">
 
-      <div className="empty-icon">
-        ◇
-      </div>
+    return (
 
-      <h2>
-        {title}
-      </h2>
+        <div className="empty-state">
 
-      <p>
-        {description}
-      </p>
+            <div className="empty-icon">
+                ◇
+            </div>
 
-    </div>
-  );
+            <h3>
+                {title}
+            </h3>
+
+            <p>
+                {description}
+            </p>
+
+        </div>
+    );
 }
+
 
 export default EmptyState;

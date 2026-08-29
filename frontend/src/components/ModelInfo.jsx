@@ -1,27 +1,78 @@
-function ModelInfo({ model }) {
-  if (!model) {
-    return null;
-  }
+import {
+    useEffect,
+    useState,
+} from "react";
 
-  return (
-    <div className="model-info">
+import {
+    getModelInfo,
+} from "../services/api";
 
-      <div>
-        <span>MODEL</span>
-        <strong>
-          {model.name || "Unknown"}
-        </strong>
-      </div>
 
-      <div>
-        <span>VERSION</span>
-        <strong>
-          {model.version || "Unknown"}
-        </strong>
-      </div>
+function ModelInfo() {
 
-    </div>
-  );
+    const [
+        model,
+        setModel,
+    ] = useState(null);
+
+
+    useEffect(() => {
+
+        getModelInfo()
+            .then(setModel)
+            .catch(() => {
+                setModel(null);
+            });
+
+    }, []);
+
+
+    return (
+
+        <section className="model-info">
+
+            <div>
+
+                <span className="eyebrow">
+                    AI MODEL
+                </span>
+
+                <h3>
+                    {model?.name ||
+                        "ImageQualityNet"}
+                </h3>
+
+            </div>
+
+
+            <div className="model-details">
+
+                <span>
+                    Version
+                </span>
+
+                <strong>
+                    {model?.version || "1.0.0"}
+                </strong>
+
+            </div>
+
+
+            <div className="model-details">
+
+                <span>
+                    Architecture
+                </span>
+
+                <strong>
+                    Hybrid CNN + Computer Vision
+                </strong>
+
+            </div>
+
+        </section>
+    );
 }
+
 
 export default ModelInfo;

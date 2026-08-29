@@ -1,57 +1,110 @@
 import {
-  getQualityClass,
-  getScoreDescription,
-} from "../utils/helpers";
+    getQualityClass,
+    getScoreDescription,
+} from "../utils/helper";
 
-function QualityScore({ score, label }) {
-  const numericScore = Number(score ?? 0);
 
-  return (
-    <div className="quality-score-card">
+function QualityScore({
+    qmos,
+    qualityScore,
+    qualityLabel,
+}) {
 
-      <div className="score-left">
+    const numericQmos =
+        Number(qmos) || 0;
 
-        <div className="section-label">
-          OVERALL QUALITY
-        </div>
-
-        <div className="score-number">
-          {numericScore}
-          <span>/100</span>
-        </div>
-
-        <p className="score-description">
-          {getScoreDescription(numericScore)}
-        </p>
-
-      </div>
-
-      <div className="score-right">
-
-        <div
-          className={`quality-badge ${getQualityClass(label)}`}
-        >
-          {label || "UNKNOWN"}
-        </div>
-
-        <div className="score-meter">
-
-          <div
-            className="score-meter-fill"
-            style={{
-              width: `${Math.min(
+    const percentage =
+        Math.max(
+            0,
+            Math.min(
                 100,
-                Math.max(0, numericScore)
-              )}%`,
-            }}
-          />
+                Number(qualityScore) ||
+                    numericQmos * 20
+            )
+        );
 
-        </div>
 
-      </div>
+    const qualityClass =
+        getQualityClass(
+            numericQmos
+        );
 
-    </div>
-  );
+
+    return (
+
+        <section className="quality-card">
+
+            <div className="section-heading">
+
+                <div>
+
+                    <span className="eyebrow">
+                        OVERALL QUALITY
+                    </span>
+
+                    <h2>
+                        Image Quality
+                    </h2>
+
+                </div>
+
+                <span
+                    className={`quality-badge ${qualityClass}`}
+                >
+                    {qualityLabel || "Unknown"}
+                </span>
+
+            </div>
+
+
+            <div className="quality-main">
+
+                <div className="score-circle">
+
+                    <div className="score-number">
+                        {numericQmos.toFixed(2)}
+                    </div>
+
+                    <div className="score-total">
+                        / 5.00
+                    </div>
+
+                </div>
+
+
+                <div className="quality-details">
+
+                    <div className="quality-score-large">
+                        {percentage.toFixed(1)}
+                        <span>/100</span>
+                    </div>
+
+                    <p>
+                        {getScoreDescription(
+                            numericQmos
+                        )}
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div className="quality-bar">
+
+                <div
+                    className="quality-bar-fill"
+                    style={{
+                        width:
+                            `${percentage}%`,
+                    }}
+                />
+
+            </div>
+
+        </section>
+    );
 }
+
 
 export default QualityScore;

@@ -1,247 +1,333 @@
-import { useEffect, useState } from "react";
 import {
-  deleteAnalysis,
-  getAnalyses,
-  getAnalysis,
+    useEffect,
+    useState,
+} from "react";
+
+import {
+    useNavigate,
+} from "react-router-dom";
+
+import Header from "../components/Header";
+
+import {
+    getHistory,
+    getAnalysis,
 } from "../services/api";
+
 import {
-  formatDate,
-  getQualityClass,
-} from "../utils/helpers";
-import EmptyState from "../components/EmptyState";
+    formatDate,
+} from "../utils/helper";
 
-function History({ onViewAnalysis }) {
-  const [analyses, setAnalyses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
-  async function loadHistory() {
-    setLoading(true);
-    setError("");
+function History() {
 
-    try {
-      const data = await getAnalyses();
+    const [
+        history,
+        setHistory,
+    ] = useState([]);
 
-      if (Array.isArray(data)) {
-        setAnalyses(data);
-      } else {
-        setAnalyses(data.analyses || []);
-      }
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to load analysis history."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
+    const [
+        loading,
+        setLoading,
+    ] = useState(true);
 
-  useEffect(() => {
-    loadHistory();
-  }, []);
+    const [
+        selectedId,
+        setSelectedId,
+    ] = useState(null);
 
-  async function handleDelete(id) {
-    const confirmed = window.confirm(
-      "Delete this analysis?"
-    );
+    const [
+        error,
+        setError,
+    ] = useState(null);
 
-    if (!confirmed) {
-      return;
-    }
 
-    try {
-      await deleteAnalysis(id);
+    const navigate =
+        useNavigate();
 
-      setAnalyses((previous) =>
-        previous.filter(
-          (analysis) =>
-            (analysis.id || analysis._id) !== id
-        )
-      );
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to delete analysis."
-      );
-    }
-  }
 
-  async function handleView(id) {
-    try {
-      const analysis = await getAnalysis(id);
+    useEffect(() => {
 
-      onViewAnalysis(analysis);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to load analysis."
-      );
-    }
-  }
+        loadHistory();
 
-  if (loading) {
-    return (
-      <main className="page-container">
-        <div className="loading-card">
-          <div className="large-spinner" />
+    }, []);
 
-          <h2>
-            Loading history
-          </h2>
 
-          <p>
-            Retrieving previous analyses...
-          </p>
-        </div>
-      </main>
-    );
-  }
+    async function loadHistory() {
 
-  return (
-    <main className="page-container">
+        setLoading(true);
 
-      <div className="results-heading">
+        setError(null);
 
-        <div>
-          <div className="section-label">
-            ANALYSIS HISTORY
-          </div>
+        try {
 
-          <h1>
-            Previous analyses
-          </h1>
+            const data =
+                await getHistory(20);
 
-          <p>
-            Review images that have been analyzed
-            previously.
-          </p>
-        </div>
+            const items =
+                Array.isArray(data)
+                    ? data
+                    : data.items ||
+                      data.history ||
+                      data.predictions ||
+                      [];
 
-        <button
-          className="secondary-button"
-          onClick={loadHistory}
-        >
-          ↻ Refresh
-        </button>
+            setHistory(items);
 
-      </div>
+        } catch (err) {
 
-      {error && (
-        <div className="error-message large">
-          <span>!</span>
-          {error}
-        </div>
-      )}
-
-      {analyses.length === 0 ? (
-        <EmptyState
-          title="No analyses yet"
-          description="Your completed image analyses will appear here."
-        />
-      ) : (
-        <div className="history-card">
-
-          <div className="history-header">
-            <span>IMAGE</span>
-            <span>SCORE</span>
-            <span>STATUS</span>
-            <span>DATE</span>
-            <span>ACTIONS</span>
-          </div>
-
-          {analyses.map((analysis) => {
-            const id =
-              analysis.id || analysis._id;
-
-            return (
-              <div
-                className="history-row"
-                key={id}
-              >
-
-                <div className="history-image-info">
-
-                  <div className="history-thumbnail">
-                    {analysis.image_url ? (
-                      <img
-                        src={analysis.image_url}
-                        alt=""
-                      />
-                    ) : (
-                      <span>IMG</span>
-                    )}
-                  </div>
-
-                  <div>
-                    <strong>
-                      {analysis.filename ||
-                        "Unnamed image"}
-                    </strong>
-
-                    <small>
-                      ID: {String(id).slice(0, 10)}
-                    </small>
-                  </div>
-
-                </div>
-
-                <div className="history-score">
-                  {analysis.quality_score ?? "--"}
-                  <small>/100</small>
-                </div>
-
-                <div>
-                  <span
-                    className={`quality-badge small ${getQualityClass(
-                      analysis.quality_label
-                    )}`}
-                  >
-                    {analysis.quality_label ||
-                      "UNKNOWN"}
-                  </span>
-                </div>
-
-                <div className="history-date">
-                  {formatDate(
-                    analysis.created_at
-                  )}
-                </div>
-
-                <div className="history-actions">
-
-                  <button
-                    className="text-button"
-                    onClick={() =>
-                      handleView(id)
-                    }
-                  >
-                    View
-                  </button>
-
-                  <button
-                    className="delete-button"
-                    onClick={() =>
-                      handleDelete(id)
-                    }
-                  >
-                    Delete
-                  </button>
-
-                </div>
-
-              </div>
+            setError(
+                err.message ||
+                "Unable to load history."
             );
-          })}
+
+        } finally {
+
+            setLoading(false);
+        }
+    }
+
+
+    async function openAnalysis(
+        predictionId
+    ) {
+
+        if (!predictionId) {
+            return;
+        }
+
+        try {
+
+            setSelectedId(
+                predictionId
+            );
+
+            const result =
+                await getAnalysis(
+                    predictionId
+                );
+
+            navigate(
+                "/results",
+                {
+                    state: {
+                        result,
+                        fromHistory: true,
+                    },
+                }
+            );
+
+        } catch (err) {
+
+            setError(
+                err.message ||
+                "Unable to open analysis."
+            );
+
+        } finally {
+
+            setSelectedId(null);
+        }
+    }
+
+
+    return (
+
+        <div className="app">
+
+            <Header />
+
+
+            <main className="page">
+
+                <div className="results-header">
+
+                    <div>
+
+                        <span className="eyebrow">
+                            MONGODB HISTORY
+                        </span>
+
+                        <h1>
+                            Analysis History
+                        </h1>
+
+                        <p>
+                            Previously analyzed images.
+                            Click any analysis to view
+                            the complete summary.
+                        </p>
+
+                    </div>
+
+
+                    <button
+                        className="primary-button"
+                        onClick={() =>
+                            navigate("/")
+                        }
+                    >
+                        New Analysis
+                    </button>
+
+                </div>
+
+
+                {loading && (
+
+                    <div className="loading-state">
+
+                        <div className="spinner" />
+
+                        <p>
+                            Loading history...
+                        </p>
+
+                    </div>
+
+                )}
+
+
+                {error && (
+
+                    <div className="error-box">
+                        {error}
+                    </div>
+
+                )}
+
+
+                {!loading &&
+                    !error &&
+                    history.length === 0 && (
+
+                        <div className="empty-state">
+
+                            <h3>
+                                No analyses yet
+                            </h3>
+
+                            <p>
+                                Your completed image
+                                analyses will appear here.
+                            </p>
+
+                        </div>
+
+                    )}
+
+
+                <div className="history-list">
+
+                    {history.map(
+                        (item, index) => {
+
+                            const qmos =
+                                Number(
+                                    item.qmos ?? 0
+                                );
+
+
+                            const score =
+                                Number(
+                                    item.quality_score ??
+                                    qmos * 20
+                                );
+
+
+                            const id =
+                                item.prediction_id ||
+                                item._id;
+
+
+                            return (
+
+                                <button
+                                    className="history-card"
+                                    key={
+                                        id ||
+                                        index
+                                    }
+                                    onClick={() =>
+                                        openAnalysis(
+                                            id
+                                        )
+                                    }
+                                    disabled={
+                                        selectedId === id
+                                    }
+                                >
+
+                                    <div>
+
+                                        <span className="history-filename">
+                                            {item.filename ||
+                                                "Unknown image"}
+                                        </span>
+
+                                        <span className="history-date">
+                                            {formatDate(
+                                                item.created_at ||
+                                                item.createdAt ||
+                                                item.timestamp
+                                            )}
+                                        </span>
+
+                                    </div>
+
+
+                                    <div className="history-score">
+
+                                        <strong>
+                                            {qmos.toFixed(
+                                                2
+                                            )}
+                                        </strong>
+
+                                        <span>
+                                            / 5
+                                        </span>
+
+                                    </div>
+
+
+                                    <div className="history-score">
+
+                                        <strong>
+                                            {score.toFixed(
+                                                1
+                                            )}
+                                        </strong>
+
+                                        <span>
+                                            / 100
+                                        </span>
+
+                                    </div>
+
+
+                                    <span className="history-open">
+
+                                        {selectedId === id
+                                            ? "Opening..."
+                                            : "View →"}
+
+                                    </span>
+
+                                </button>
+
+                            );
+
+                        }
+                    )}
+
+                </div>
+
+            </main>
 
         </div>
-      )}
-
-    </main>
-  );
+    );
 }
+
 
 export default History;

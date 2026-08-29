@@ -1,125 +1,42 @@
-import { useState } from "react";
+import {
+    BrowserRouter,
+    Routes,
+    Route,
+} from "react-router-dom";
 
-import Header from "./components/Header";
 import Home from "./pages/Home";
 import Results from "./pages/Results";
 import History from "./pages/History";
 
-import { useAnalysis } from "./hooks/useAnalysis";
 
 function App() {
-  const [currentPage, setCurrentPage] =
-    useState("home");
 
-  const [imageUrl, setImageUrl] =
-    useState(null);
+    return (
 
-  const [selectedHistoryResult, setSelectedHistoryResult] =
-    useState(null);
+        <BrowserRouter>
 
-  const {
-    result,
-    loading,
-    error,
-    runAnalysis,
-    clearResult,
-  } = useAnalysis();
+            <Routes>
 
-  async function handleAnalyze(file) {
-    if (!file) return;
+                <Route
+                    path="/"
+                    element={<Home />}
+                />
 
-    if (imageUrl) {
-      URL.revokeObjectURL(imageUrl);
-    }
+                <Route
+                    path="/results"
+                    element={<Results />}
+                />
 
-    const localImageUrl =
-      URL.createObjectURL(file);
+                <Route
+                    path="/history"
+                    element={<History />}
+                />
 
-    setImageUrl(localImageUrl);
-    setSelectedHistoryResult(null);
+            </Routes>
 
-    try {
-      await runAnalysis(file);
-
-      setCurrentPage("results");
-    } catch {
-      // Error is handled by useAnalysis.
-    }
-  }
-
-  function handleNewAnalysis() {
-    clearResult();
-    setSelectedHistoryResult(null);
-
-    if (imageUrl) {
-      URL.revokeObjectURL(imageUrl);
-    }
-
-    setImageUrl(null);
-    setCurrentPage("home");
-  }
-
-  function handleViewHistoryAnalysis(analysis) {
-    setSelectedHistoryResult(analysis);
-    setCurrentPage("results");
-  }
-
-  function navigate(page) {
-    setCurrentPage(page);
-  }
-
-  const displayedResult =
-    selectedHistoryResult || result;
-
-  const displayedImage =
-    selectedHistoryResult?.image_url ||
-    selectedHistoryResult?.imageUrl ||
-    imageUrl;
-
-  return (
-    <div className="app">
-
-      <Header
-        currentPage={currentPage}
-        onNavigate={navigate}
-      />
-
-      {currentPage === "home" && (
-        <Home
-          onAnalyze={handleAnalyze}
-          loading={loading}
-          error={error}
-        />
-      )}
-
-      {currentPage === "results" && (
-        <Results
-          result={displayedResult}
-          imageUrl={displayedImage}
-          onNewAnalysis={handleNewAnalysis}
-        />
-      )}
-
-      {currentPage === "history" && (
-        <History
-          onViewAnalysis={handleViewHistoryAnalysis}
-        />
-      )}
-
-      <footer className="app-footer">
-
-        <p>
-          Viora AI · Image Quality & Defect Detection
-        </p>
-
-        <span>
-          AI-powered · Computer Vision · Local Inference
-        </span>
-
-      </footer>
-
-    </div>
-  );
+        </BrowserRouter>
+    );
 }
+
 
 export default App;

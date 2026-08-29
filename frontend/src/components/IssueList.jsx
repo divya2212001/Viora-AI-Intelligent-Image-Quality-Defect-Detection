@@ -1,92 +1,136 @@
 import {
-  formatConfidence,
-  formatIssueName,
-  getSeverityClass,
-} from "../utils/helpers";
+    formatPercentage,
+    prettifyName,
+} from "../utils/helper";
 
-function IssueList({ issues = [] }) {
-  return (
-    <div className="card">
 
-      <div className="card-header">
+function IssueList({
+    defects = {},
+}) {
 
-        <div>
-          <div className="section-label">
-            DETECTED ISSUES
-          </div>
+    const entries =
+        Object.entries(defects)
+            .sort(
+                ([, a], [, b]) =>
+                    Number(b) - Number(a)
+            );
 
-          <h2>
-            Quality concerns
-          </h2>
-        </div>
 
-        <div className="issue-count">
-          {issues.length}
-        </div>
+    if (entries.length === 0) {
 
-      </div>
+        return (
 
-      {issues.length === 0 ? (
-        <div className="no-issues">
-          <div className="success-icon">
-            ✓
-          </div>
+            <section className="panel">
 
-          <div>
-            <strong>
-              No significant issues detected
-            </strong>
+                <div className="section-heading">
 
-            <p>
-              The model did not identify any major
-              quality concerns.
-            </p>
-          </div>
-        </div>
-      ) : (
-        <div className="issue-list">
+                    <div>
 
-          {issues.map((issue, index) => (
-            <div
-              className="issue-row"
-              key={`${issue.type}-${index}`}
-            >
+                        <span className="eyebrow">
+                            DEFECT ANALYSIS
+                        </span>
 
-              <div className="issue-main">
+                        <h2>
+                            Detected Issues
+                        </h2>
 
-                <div className="issue-icon">
-                  !
+                    </div>
+
                 </div>
+
+                <p className="muted">
+                    No defect information available.
+                </p>
+
+            </section>
+        );
+    }
+
+
+    return (
+
+        <section className="panel">
+
+            <div className="section-heading">
 
                 <div>
-                  <strong>
-                    {formatIssueName(issue.type)}
-                  </strong>
 
-                  <span>
-                    Confidence{" "}
-                    {formatConfidence(issue.confidence)}
-                  </span>
+                    <span className="eyebrow">
+                        DEFECT ANALYSIS
+                    </span>
+
+                    <h2>
+                        Detected Issues
+                    </h2>
+
                 </div>
 
-              </div>
+            </div>
 
-              <div
-                className={`severity-badge ${getSeverityClass(
-                  issue.severity
-                )}`}
-              >
-                {issue.severity || "unknown"}
-              </div>
+
+            <div className="issue-list">
+
+                {entries.map(
+                    ([name, value]) => {
+
+                        const probability =
+                            Math.max(
+                                0,
+                                Math.min(
+                                    1,
+                                    Number(value) || 0
+                                )
+                            );
+
+
+                        return (
+
+                            <div
+                                className="issue-row"
+                                key={name}
+                            >
+
+                                <div className="issue-top">
+
+                                    <span className="issue-name">
+                                        {prettifyName(
+                                            name
+                                        )}
+                                    </span>
+
+                                    <span className="issue-value">
+                                        {formatPercentage(
+                                            probability
+                                        )}
+                                    </span>
+
+                                </div>
+
+
+                                <div className="issue-bar">
+
+                                    <div
+                                        className="issue-bar-fill"
+                                        style={{
+                                            width:
+                                                `${probability * 100}%`,
+                                        }}
+                                    />
+
+                                </div>
+
+                            </div>
+
+                        );
+
+                    }
+                )}
 
             </div>
-          ))}
 
-        </div>
-      )}
-
-    </div>
-  );
+        </section>
+    );
 }
+
 
 export default IssueList;

@@ -1,92 +1,135 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const API_URL = "http://127.0.0.1:8000";
 
-async function handleResponse(response) {
-  let data = null;
 
-  try {
-    data = await response.json();
-  } catch {
-    data = null;
-  }
+/*
+ * ==========================================
+ * PREDICT IMAGE
+ * ==========================================
+ */
 
-  if (!response.ok) {
-    const message =
-      data?.detail ||
-      data?.message ||
-      `Request failed with status ${response.status}`;
+export async function predictImage(file) {
 
-    throw new Error(message);
-  }
+    const formData = new FormData();
 
-  return data;
-}
+    formData.append(
+        "file",
+        file
+    );
 
-export async function analyzeImage(file) {
-  const formData = new FormData();
 
-  formData.append("file", file);
+    const response = await fetch(
+        `${API_URL}/api/predict`,
+        {
+            method: "POST",
+            body: formData,
+        }
+    );
 
-  const response = await fetch(
-    `${API_BASE_URL}/api/analyze`,
-    {
-      method: "POST",
-      body: formData,
+
+    if (!response.ok) {
+
+        const error =
+            await response.text();
+
+        throw new Error(
+            error || "Prediction failed"
+        );
     }
-  );
 
-  return handleResponse(response);
+
+    return response.json();
 }
 
-export async function getAnalyses() {
-  const response = await fetch(
-    `${API_BASE_URL}/api/analyses`
-  );
 
-  return handleResponse(response);
-}
 
-export async function getAnalysis(id) {
-  const response = await fetch(
-    `${API_BASE_URL}/api/analyses/${id}`
-  );
+/*
+ * ==========================================
+ * GET HISTORY
+ * ==========================================
+ */
 
-  return handleResponse(response);
-}
+export async function getHistory(
+    limit = 20
+) {
 
-export async function deleteAnalysis(id) {
-  const response = await fetch(
-    `${API_BASE_URL}/api/analyses/${id}`,
-    {
-      method: "DELETE",
+    const response = await fetch(
+        `${API_URL}/api/history?limit=${limit}`
+    );
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            "Failed to load history"
+        );
     }
-  );
 
-  return handleResponse(response);
+
+    return response.json();
 }
 
-export async function analyzeBatch(files) {
-  const formData = new FormData();
 
-  files.forEach((file) => {
-    formData.append("files", file);
-  });
 
-  const response = await fetch(
-    `${API_BASE_URL}/api/analyze/batch`,
-    {
-      method: "POST",
-      body: formData,
+/*
+ * ==========================================
+ * GET SINGLE ANALYSIS
+ * ==========================================
+ */
+
+export async function getAnalysis(
+    analysisId
+) {
+
+    const response = await fetch(
+        `${API_URL}/api/analyses/${analysisId}`
+    );
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            "Failed to load analysis"
+        );
     }
-  );
 
-  return handleResponse(response);
+
+    return response.json();
 }
 
-export async function getHealth() {
-  const response = await fetch(
-    `${API_BASE_URL}/health`
-  );
 
-  return handleResponse(response);
+
+/*
+ * ==========================================
+ * GET MODEL INFORMATION
+ * ==========================================
+ */
+
+export async function getModelInfo() {
+
+    const response = await fetch(
+        `${API_URL}/api/model-info`
+    );
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            "Failed to load model information"
+        );
+    }
+
+
+    return response.json();
 }
+
+
+
+/*
+ * ==========================================
+ * API URL
+ * ==========================================
+ */
+
+export {
+    API_URL,
+};

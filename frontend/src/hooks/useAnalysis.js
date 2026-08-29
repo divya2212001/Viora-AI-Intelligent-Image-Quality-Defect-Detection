@@ -1,45 +1,94 @@
-import { useState } from "react";
-import { analyzeImage } from "../services/api";
+import {
+    useState,
+} from "react";
+
+import {
+    predictImage,
+} from "../services/api";
+
 
 export function useAnalysis() {
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
-  async function runAnalysis(file) {
-    setLoading(true);
-    setError(null);
+    const [
+        result,
+        setResult,
+    ] = useState(null);
 
-    try {
-      const data = await analyzeImage(file);
+    const [
+        loading,
+        setLoading,
+    ] = useState(false);
 
-      setResult(data);
+    const [
+        error,
+        setError,
+    ] = useState(null);
 
-      return data;
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Unable to analyze image.";
 
-      setError(message);
+    async function analyze(file) {
 
-      throw err;
-    } finally {
-      setLoading(false);
+        if (!file) {
+
+            setError(
+                "Please select an image."
+            );
+
+            return null;
+        }
+
+
+        setLoading(true);
+
+        setError(null);
+
+        setResult(null);
+
+
+        try {
+
+            const data =
+                await predictImage(
+                    file
+                );
+
+            setResult(data);
+
+            return data;
+
+        } catch (err) {
+
+            const message =
+                err instanceof Error
+                    ? err.message
+                    : "Unable to analyze image.";
+
+            setError(message);
+
+            return null;
+
+        } finally {
+
+            setLoading(false);
+
+        }
     }
-  }
 
-  function clearResult() {
-    setResult(null);
-    setError(null);
-  }
 
-  return {
-    result,
-    loading,
-    error,
-    runAnalysis,
-    clearResult,
-  };
+    function reset() {
+
+        setResult(null);
+
+        setError(null);
+
+        setLoading(false);
+    }
+
+
+    return {
+        result,
+        loading,
+        error,
+        analyze,
+        reset,
+    };
 }
