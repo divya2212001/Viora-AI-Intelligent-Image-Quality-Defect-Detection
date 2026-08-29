@@ -67,6 +67,23 @@ class Settings:
         "0.1.0",
     )
 
+    # Comma-separated browser origins permitted to call this API.
+    CORS_ORIGINS: tuple[str, ...] = tuple(
+        origin.strip()
+        for origin in os.getenv(
+            "CORS_ORIGINS",
+            ",".join(
+                (
+                    "http://localhost:5173",
+                    "http://127.0.0.1:5173",
+                    "http://viora-ai-intelligent-image-quality.vercel.app",
+                    "https://viora-ai-intelligent-image-quality.vercel.app",
+                )
+            ),
+        ).split(",")
+        if origin.strip()
+    )
+
 
 settings = Settings()
 
