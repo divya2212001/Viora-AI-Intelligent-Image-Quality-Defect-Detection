@@ -1,6 +1,7 @@
 from fastapi import (
     APIRouter,
     File,
+    Query,
     UploadFile,
     HTTPException,
 )
@@ -20,6 +21,11 @@ router = APIRouter(
 @router.post("/predict")
 async def predict(
     file: UploadFile = File(...),
+    session_id: str = Query(
+        ...,
+        min_length=1,
+        max_length=128,
+    ),
 ):
 
     if not file.content_type:
@@ -63,6 +69,7 @@ async def predict(
         result = predict_image(
             image_bytes,
             file.filename or "image.jpg",
+            session_id,
         )
 
 

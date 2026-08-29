@@ -104,6 +104,7 @@ def get_recommendation(
 def predict_image(
     image_bytes: bytes,
     filename: str,
+    session_id: str,
 ):
 
     prediction = predictor.predict(
@@ -284,6 +285,7 @@ def predict_image(
         create_prediction_document(
             filename,
             result,
+            session_id,
         )
     )
 

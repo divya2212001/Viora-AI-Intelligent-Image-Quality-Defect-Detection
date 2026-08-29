@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 def create_prediction_document(
     filename: str,
     prediction: dict,
+    session_id: str,
 ):
 
     return {
@@ -11,6 +12,8 @@ def create_prediction_document(
             prediction[
                 "prediction_id"
             ],
+
+        "session_id": session_id,
 
         "filename":
             filename,

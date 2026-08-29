@@ -2,6 +2,7 @@ from pathlib import Path
 
 from fastapi import (
     APIRouter,
+    Query,
     HTTPException,
 )
 
@@ -20,6 +21,11 @@ router = APIRouter(
 @router.get("/history")
 def get_history(
     limit: int = 20,
+    session_id: str = Query(
+        ...,
+        min_length=1,
+        max_length=128,
+    ),
 ):
 
     limit = max(
@@ -29,7 +35,7 @@ def get_history(
 
     cursor = (
         predictions_collection
-        .find({})
+        .find({"session_id": session_id})
         .sort(
             "created_at",
             -1,
@@ -54,6 +60,11 @@ def get_history(
 )
 def get_analysis(
     prediction_id: str,
+    session_id: str = Query(
+        ...,
+        min_length=1,
+        max_length=128,
+    ),
 ):
 
     document = (
@@ -61,7 +72,8 @@ def get_analysis(
         .find_one(
             {
                 "prediction_id":
-                    prediction_id
+                    prediction_id,
+                "session_id": session_id,
             }
         )
     )
@@ -85,6 +97,11 @@ def get_analysis(
 )
 def delete_analysis(
     prediction_id: str,
+    session_id: str = Query(
+        ...,
+        min_length=1,
+        max_length=128,
+    ),
 ):
 
     document = (
@@ -92,7 +109,8 @@ def delete_analysis(
         .find_one(
             {
                 "prediction_id":
-                    prediction_id
+                    prediction_id,
+                "session_id": session_id,
             }
         )
     )
@@ -133,7 +151,8 @@ def delete_analysis(
     predictions_collection.delete_one(
         {
             "prediction_id":
-                prediction_id
+                prediction_id,
+            "session_id": session_id,
         }
     )
 

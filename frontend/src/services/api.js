@@ -2,6 +2,44 @@ const API_URL =
     import.meta.env.VITE_API_BASE_URL ||
     "http://127.0.0.1:8000";
 
+const SESSION_ID_KEY =
+    "viora-analysis-session-id";
+
+
+function getSessionId() {
+
+    let sessionId =
+        sessionStorage.getItem(
+            SESSION_ID_KEY
+        );
+
+    if (!sessionId) {
+
+        sessionId = crypto.randomUUID();
+
+        sessionStorage.setItem(
+            SESSION_ID_KEY,
+            sessionId
+        );
+    }
+
+    return sessionId;
+}
+
+
+function withSessionId(path) {
+
+    const separator =
+        path.includes("?")
+            ? "&"
+            : "?";
+
+    return (
+        `${path}${separator}session_id=` +
+        encodeURIComponent(getSessionId())
+    );
+}
+
 
 export async function predictImage(file) {
 
@@ -14,7 +52,7 @@ export async function predictImage(file) {
 
 
     const response = await fetch(
-        `${API_URL}/api/predict`,
+        `${API_URL}${withSessionId("/api/predict")}`,
         {
             method: "POST",
             body: formData,
@@ -42,7 +80,9 @@ export async function getHistory(
 ) {
 
     const response = await fetch(
-        `${API_URL}/api/history?limit=${limit}`
+        `${API_URL}${withSessionId(
+            `/api/history?limit=${limit}`
+        )}`
     );
 
 
@@ -63,7 +103,9 @@ export async function getAnalysis(
 ) {
 
     const response = await fetch(
-        `${API_URL}/api/analyses/${analysisId}`
+        `${API_URL}${withSessionId(
+            `/api/analyses/${analysisId}`
+        )}`
     );
 
 
@@ -84,7 +126,9 @@ export async function deleteAnalysis(
 ) {
 
     const response = await fetch(
-        `${API_URL}/api/analyses/${analysisId}`,
+        `${API_URL}${withSessionId(
+            `/api/analyses/${analysisId}`
+        )}`,
         {
             method: "DELETE",
         }
