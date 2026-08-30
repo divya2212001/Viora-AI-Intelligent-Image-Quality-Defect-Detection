@@ -1,8 +1,10 @@
+import gc
 from pathlib import Path
 from uuid import uuid4
 
 import cv2
 import numpy as np
+import torch
 
 from ml.predict import QualityPredictor
 
@@ -104,31 +106,6 @@ def predict_image(
     session_id: str,
 ):
 
-    prediction = predictor.predict(
-        image_bytes
-    )
-
-    qmos = float(
-        prediction["qmos"]
-    )
-
-    defects = prediction[
-        "defects"
-    ]
-
-    quality_label = (
-        get_quality_label(
-            qmos
-        )
-    )
-
-    recommendation = (
-        get_recommendation(
-            qmos,
-            defects,
-        )
-    )
-
     prediction_id = str(
         uuid4()
     )
@@ -137,12 +114,12 @@ def predict_image(
         dtype=np.uint8,
     )
 
-    image = cv2.imdecode(
+    original_image = cv2.imdecode(
         array,
         cv2.IMREAD_COLOR,
     )
 
-    if image is None:
+    if original_image is None:
 
         raise ValueError(
             "Could not decode uploaded image."
@@ -168,7 +145,7 @@ def predict_image(
 
     success = cv2.imwrite(
         str(image_path),
-        image,
+        original_image,
     )
 
     if not success:
@@ -176,6 +153,20 @@ def predict_image(
         raise RuntimeError(
             "Failed to save uploaded image."
         )
+
+    # Persist the uploaded original, then retain only a bounded image for all
+    # in-memory ML/OpenCV work (including the Grad-CAM overlay).
+    image = predictor.resize_for_inference(
+        original_image,
+        settings.MAX_IMAGE_DIMENSION,
+    )
+    del original_image
+
+    prediction = predictor.predict_from_image(image)
+    qmos = float(prediction["qmos"])
+    defects = prediction["defects"]
+    quality_label = get_quality_label(qmos)
+    recommendation = get_recommendation(qmos, defects)
 
 
     image_url = (
@@ -192,9 +183,7 @@ def predict_image(
         (
             image_tensor,
             feature_tensor,
-        ) = predictor.prepare_inputs(
-            image_bytes
-        )
+        ) = predictor.prepare_inputs_from_image(image)
 
 
         gradcam_dir = (
@@ -211,23 +200,17 @@ def predict_image(
         # Generate Grad-CAM using the same
         # trained model.
 
-        gradcam_filename = (
-            generate_gradcam(
+        # Serialize model access so temporary Grad-CAM hooks never observe a
+        # concurrent inference request using this single shared model instance.
+        with predictor.model_lock:
+            gradcam_filename = generate_gradcam(
                 model=predictor.model,
-
                 image_tensor=image_tensor,
-
                 feature_tensor=feature_tensor,
-
                 original_image=image,
-
                 output_dir=gradcam_dir,
-
-                output_filename=(
-                    f"{prediction_id}.jpg"
-                ),
+                output_filename=f"{prediction_id}.jpg",
             )
-        )
 
 
         if gradcam_filename:
@@ -250,6 +233,15 @@ def predict_image(
         print(
             repr(error)
         )
+    finally:
+        # The explainability service clears graph state; release request inputs.
+        if "image_tensor" in locals():
+            del image_tensor
+        if "feature_tensor" in locals():
+            del feature_tensor
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
     result = {
 
@@ -335,4 +327,5 @@ def predict_image(
             "persistence_status"
         ] = "unavailable"
 
+    del image, array
     return result

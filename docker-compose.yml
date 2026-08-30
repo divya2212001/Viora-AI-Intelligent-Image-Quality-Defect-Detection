@@ -22,6 +22,8 @@ services:
     ports:
       - "8000:8000"
 
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+
     environment:
       APP_NAME: ${APP_NAME}
       APP_VERSION: ${APP_VERSION}

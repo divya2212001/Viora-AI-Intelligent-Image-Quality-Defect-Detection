@@ -43,6 +43,11 @@ class Settings:
         MAX_FILE_SIZE_MB * 1024 * 1024
     )
 
+    # Bound decoded pixels so one oversized image cannot dominate request RAM.
+    MAX_IMAGE_DIMENSION: int = int(
+        os.getenv("MAX_IMAGE_DIMENSION", "1536")
+    )
+
     UPLOAD_DIR: Path = Path(
         os.getenv(
             "UPLOAD_DIR",

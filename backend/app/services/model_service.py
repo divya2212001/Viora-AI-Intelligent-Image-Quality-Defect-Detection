@@ -1,7 +1,5 @@
 from typing import Any
 
-from ml.predict import QualityPredictor
-
 from ..config import settings
 
 
@@ -17,8 +15,11 @@ class ModelService:
 
         self.version = settings.MODEL_VERSION
 
-        # Load the trained model once.
-        self.predictor = QualityPredictor()
+        # Reuse the API's one process-wide predictor rather than loading a
+        # second ResNet18 if this legacy service is constructed.
+        from .prediction_service import predictor
+
+        self.predictor = predictor
 
     def predict(
         self,

@@ -1,4 +1,5 @@
 import cv2
+import gc
 import numpy as np
 import torch
 
@@ -27,92 +28,53 @@ class GradCAM:
 
         self.target_layer = target_layer
 
-        self.activations = None
-
-        self.gradients = None
-
-        self.forward_hook = (
-            target_layer.register_forward_hook(
-                self.save_activation
-            )
-        )
-
-        self.backward_hook = (
-            target_layer.register_full_backward_hook(
-                self.save_gradient
-            )
-        )
-
-    def save_activation(
-        self,
-        module,
-        input,
-        output,
-    ):
-
-        self.activations = output
-
-    def save_gradient(
-        self,
-        module,
-        grad_input,
-        grad_output,
-    ):
-
-        self.gradients = (
-            grad_output[0]
-        )
-
     def generate(
         self,
         image,
         features,
     ):
 
-        self.model.zero_grad()
+        activations = []
+        gradients = []
 
-        quality, _ = self.model(
-            image,
-            features,
-        )
+        def save_activation(module, hook_input, output):
+            activations.append(output.detach())
 
-        quality.backward()
+        def save_gradient(module, grad_input, grad_output):
+            gradients.append(grad_output[0].detach())
 
-        activations = (
-            self.activations
-        )
+        forward_hook = backward_hook = None
+        quality = defect_output = weights = cam_tensor = None
+        try:
+            forward_hook = self.target_layer.register_forward_hook(save_activation)
+            backward_hook = self.target_layer.register_full_backward_hook(save_gradient)
+            with torch.enable_grad():
+                self.model.zero_grad(set_to_none=True)
+                image.requires_grad_(True)
+                quality, defect_output = self.model(image, features)
+                quality[0].backward()
 
-        gradients = (
-            self.gradients
-        )
-
-        weights = gradients.mean(
-            dim=(2, 3),
-            keepdim=True,
-        )
-
-        cam = (
-            weights
-            * activations
-        ).sum(
-            dim=1
-        )
-
-        cam = torch.relu(
-            cam
-        )
-
-        cam = cam.squeeze(
-            0
-        ).detach().cpu().numpy()
-
-        cam -= cam.min()
-
-        if cam.max() > 0:
-
-            cam /= cam.max()
-
-        return cam
+            if not activations or not gradients:
+                raise RuntimeError("Grad-CAM hooks did not capture activations and gradients.")
+            weights = gradients[0].mean(dim=(2, 3), keepdim=True)
+            cam_tensor = torch.relu((weights * activations[0]).sum(dim=1)).squeeze(0)
+            cam = cam_tensor.cpu().numpy()
+            cam -= cam.min()
+            if cam.max() > 0:
+                cam /= cam.max()
+            return cam
+        finally:
+            if forward_hook is not None:
+                forward_hook.remove()
+            if backward_hook is not None:
+                backward_hook.remove()
+            activations.clear()
+            gradients.clear()
+            self.model.zero_grad(set_to_none=True)
+            del quality, defect_output, weights, cam_tensor
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
 
 def main():
